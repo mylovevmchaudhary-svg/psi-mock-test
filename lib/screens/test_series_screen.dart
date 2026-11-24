@@ -25,10 +25,10 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> {
   void initState() {
     super.initState();
     _selectedExamId = widget.initialCategory?.id ?? 'constable';
-    _syncTestsFromSupabase();
+    _syncTestsFromFirebase();
   }
 
-  void _syncTestsFromSupabase() async {
+  void _syncTestsFromFirebase() async {
     setState(() => _isLoadingTests = true);
     final tests = await CuratedQuestionBank.loadAllTestsFromFirebase(examId: _selectedExamId);
     if (tests.isNotEmpty) {
@@ -144,7 +144,7 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> {
 
   void _startTest(MockTest test) async {
     if (test.questions.isEmpty) {
-      // Show loading indicator while fetching questions from Supabase
+      // Show loading indicator while fetching questions from Firebase
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -157,7 +157,7 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> {
                 children: [
                   CircularProgressIndicator(color: Color(0xFF0D253F)),
                   SizedBox(height: 14),
-                  Text('Supabase માંથી તમામ MCQs લોડ થઈ રહ્યા છે...', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  Text('Firebase માંથી તમામ MCQs લોડ થઈ રહ્યા છે...', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -165,7 +165,7 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> {
         ),
       );
 
-      final loaded = await CuratedQuestionBank.loadQuestionsFromSupabase(test.id);
+      final loaded = await CuratedQuestionBank.loadQuestionsFromFirebase(test.id);
       if (mounted) Navigator.pop(context); // pop loading dialog
 
       if (loaded.isEmpty) {
@@ -302,7 +302,7 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> {
           // Clean Curated Mock Test List with Pull-to-Refresh
           Expanded(
             child: RefreshIndicator(
-              onRefresh: () async => _syncTestsFromSupabase(),
+              onRefresh: () async => _syncTestsFromFirebase(),
               color: const Color(0xFF0D253F),
               child: _isLoadingTests
                   ? Center(
@@ -473,7 +473,7 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> {
       onTap: () {
         if (_selectedExamId != examId) {
           setState(() => _selectedExamId = examId);
-          _syncTestsFromSupabase();
+          _syncTestsFromFirebase();
         }
       },
       child: Container(

@@ -40,11 +40,6 @@ class CuratedQuestionBank {
     return _cachedQuestions[testId] ?? [];
   }
 
-  /// Backward-compatible alias
-  static Future<List<Question>> loadQuestionsFromSupabase(String testId) async {
-    return loadQuestionsFromFirebase(testId);
-  }
-
   /// Load all dynamic mock tests from Firebase `mock_tests` collection
   static Future<List<MockTest>> loadAllTestsFromFirebase({String? examId}) async {
     final liveTests = await FirebaseService().fetchMockTests(examId: examId);
@@ -66,11 +61,6 @@ class CuratedQuestionBank {
       return liveTests;
     }
     return _dynamicTestsByExam[examId ?? 'constable'] ?? [];
-  }
-
-  /// Backward-compatible alias
-  static Future<List<MockTest>> loadAllTestsFromSupabase({String? examId}) async {
-    return loadAllTestsFromFirebase(examId: examId);
   }
 
   /// Count questions available for a given subject keyword

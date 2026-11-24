@@ -35,11 +35,11 @@ class _SyllabusScreenState extends State<SyllabusScreen> {
       _currentSubjects = widget.subjects!;
       _isLoading = false;
     } else {
-      _loadSyllabusFromSupabase();
+      _loadSyllabusFromFirebase();
     }
   }
 
-  void _loadSyllabusFromSupabase() async {
+  void _loadSyllabusFromFirebase() async {
     setState(() => _isLoading = true);
     final examStr = _selectedExam == ExamType.psi ? 'psi' : 'constable';
     final liveSubjects = await FirebaseService().fetchSyllabusWithTopics(examId: examStr);
@@ -55,7 +55,7 @@ class _SyllabusScreenState extends State<SyllabusScreen> {
     setState(() {
       _selectedExam = newExam;
     });
-    _loadSyllabusFromSupabase();
+    _loadSyllabusFromFirebase();
   }
 
   void _startTopicPractice(SyllabusTopic topic) async {
@@ -274,14 +274,14 @@ class _SyllabusScreenState extends State<SyllabusScreen> {
                         CircularProgressIndicator(color: Color(0xFF0D253F)),
                         SizedBox(height: 16),
                         Text(
-                          'Supabase માંથી સિલેબસ અને ટોપિક્સ લોડ થઈ રહ્યા છે...',
+                          'Firebase માંથી સિલેબસ અને ટોપિક્સ લોડ થઈ રહ્યા છે...',
                           style: TextStyle(color: Colors.grey, fontSize: 13),
                         ),
                       ],
                     ),
                   )
                 : RefreshIndicator(
-                    onRefresh: () async => _loadSyllabusFromSupabase(),
+                    onRefresh: () async => _loadSyllabusFromFirebase(),
                     color: const Color(0xFF0D253F),
                     child: filteredSubjects.isEmpty
                         ? const Center(

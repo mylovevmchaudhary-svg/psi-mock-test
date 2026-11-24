@@ -14,13 +14,17 @@ class AdminDataManager {
   bool isConnectedToFirebase = true;
   bool isLoading = false;
 
-  // Active Mock Tests list - 100% DYNAMIC from Firebase Firestore (ZERO hardcoded tests!)
+  String? adminToken;
+  String? adminEmail;
+  String? adminUid;
+
+  // Active Mock Tests list - 100% DYNAMIC from Firebase Firestore
   final List<Map<String, dynamic>> tests = [];
 
   // Dynamic Question Bank per Test - 100% REAL from Firebase Firestore
   final Map<String, List<Map<String, dynamic>>> testQuestions = {};
 
-  // Real Registered Students List - 100% from Firestore `profiles`
+  // Real Registered Students List - 100% from Firestore `profiles` and `users`
   final List<Map<String, dynamic>> students = [];
 
   // Real Withdrawal Requests List - 100% from Firestore `withdrawals`
@@ -35,7 +39,7 @@ class AdminDataManager {
     'instagram': 'https://instagram.com/gujaratpoliceprep',
   };
 
-  // Firestore Helpers
+  // Firestore Field Encoders & Decoders
   static Map<String, dynamic> _encodeValue(dynamic val) {
     if (val == null) return {'nullValue': null};
     if (val is bool) return {'booleanValue': val};
@@ -96,7 +100,7 @@ class AdminDataManager {
     try {
       final uri = Uri.parse('$firestoreUrl/$collection?pageSize=$pageSize&key=$apiKey');
       final client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 8);
+      client.connectionTimeout = const Duration(seconds: 10);
       final req = await client.getUrl(uri);
       final res = await req.close();
       final body = await res.transform(utf8.decoder).join();
@@ -117,7 +121,7 @@ class AdminDataManager {
     try {
       final uri = Uri.parse('$firestoreUrl/$collection/$docId?key=$apiKey');
       final client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 8);
+      client.connectionTimeout = const Duration(seconds: 10);
       final req = await client.patchUrl(uri);
       req.headers.set('Content-Type', 'application/json');
 
@@ -136,7 +140,7 @@ class AdminDataManager {
     try {
       final uri = Uri.parse('$firestoreUrl/$collection/$docId?key=$apiKey');
       final client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 8);
+      client.connectionTimeout = const Duration(seconds: 10);
       final req = await client.deleteUrl(uri);
       final res = await req.close();
       return res.statusCode >= 200 && res.statusCode < 300;
@@ -144,6 +148,56 @@ class AdminDataManager {
       return false;
     }
   }
+
+  // =========================================================================
+  // FIREBASE AUTHENTICATION (ADMIN LOGIN VIA EMAIL & PASSWORD)
+  // =========================================================================
+
+  /// Real Firebase Authentication: Login Admin via Email & Password
+  /// Checks directly against the Firebase project's Authentication users
+  Future<Map<String, dynamic>> loginAdmin(String email, String password) async {
+    try {
+      final uri = Uri.parse('${FirebaseVault.authBaseUrl}/accounts:signInWithPassword?key=$apiKey');
+      final client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 10);
+      final req = await client.postUrl(uri);
+      req.headers.set('Content-Type', 'application/json');
+      req.write(jsonEncode({
+        'email': email.trim(),
+        'password': password.trim(),
+        'returnSecureToken': true,
+      }));
+      final res = await req.close();
+      final body = await res.transform(utf8.decoder).join();
+      final Map<String, dynamic> json = jsonDecode(body);
+
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        adminToken = json['idToken']?.toString();
+        adminEmail = json['email']?.toString() ?? email.trim();
+        adminUid = json['localId']?.toString();
+        return {'success': true};
+      } else {
+        final errorObj = json['error'];
+        final errorMsg = errorObj is Map ? (errorObj['message'] ?? 'Login failed') : 'Login failed';
+        String friendly = 'અમાન્ય એડમિન ઈમેલ અથવા પાસવર્ડ.';
+        if (errorMsg.toString().contains('EMAIL_NOT_FOUND')) {
+          friendly = 'આ એડમિન ઈમેલ Firebase માં નોંધાયેલ નથી. કૃપા કરીને Firebase Console માં એકાઉન્ટ બનાવો.';
+        } else if (errorMsg.toString().contains('INVALID_PASSWORD') ||
+            errorMsg.toString().contains('INVALID_LOGIN_CREDENTIALS')) {
+          friendly = 'ખોટો પાસવર્ડ! કૃપા કરીને Firebase માં સેટ કરેલ સાચો પાસવર્ડ દાખલ કરો.';
+        } else if (errorMsg.toString().contains('USER_DISABLED')) {
+          friendly = 'આ એડમિન એકાઉન્ટ નિષ્ક્રિય કરવામાં આવેલ છે.';
+        }
+        return {'success': false, 'error': friendly};
+      }
+    } catch (e) {
+      return {'success': false, 'error': 'નેટવર્ક કનેક્શન તપાસો: $e'};
+    }
+  }
+
+  // =========================================================================
+  // DATA FETCHING & SYNCHRONIZATION
+  // =========================================================================
 
   /// 1. Fetch Real Mock Tests from Firestore (Zero hardcoded fallback!)
   Future<void> fetchRealMockTests() async {
@@ -160,7 +214,7 @@ class AdminDataManager {
     for (final item in docs) {
       final examId = item['exam_id']?.toString() ?? 'constable';
       final testId = item['id']?.toString() ?? '';
-      final mcqCount = counts[testId] ?? 0;
+      final mcqCount = counts[testId] ?? (item['total_questions'] as num?)?.toInt() ?? 0;
 
       tests.add({
         'id': testId,
@@ -179,11 +233,25 @@ class AdminDataManager {
     }
   }
 
-  /// 2. Fetch Real Students from Firestore `profiles` collection
+  /// 2. Fetch Real Students from Firestore `profiles` and `users`
   Future<void> fetchRealStudents() async {
-    final docs = await _firestoreList('profiles');
+    final profileDocs = await _firestoreList('profiles');
+    final userDocs = await _firestoreList('users');
+
+    final Map<String, Map<String, dynamic>> combined = {};
+    for (final d in profileDocs) {
+      final id = d['id']?.toString() ?? '';
+      if (id.isNotEmpty) combined[id] = d;
+    }
+    for (final d in userDocs) {
+      final id = d['id']?.toString() ?? '';
+      if (id.isNotEmpty && !combined.containsKey(id)) {
+        combined[id] = d;
+      }
+    }
+
     students.clear();
-    for (final item in docs) {
+    for (final item in combined.values) {
       String joinedStr = 'તાજેતરમાં';
       if (item['created_at'] != null) {
         try {
@@ -323,6 +391,7 @@ class AdminDataManager {
       'optionE': optionsList.length > 4 ? optionsList[4] : 'પ્રયાસ કરેલ નથી',
       'correct': correctLetter,
       'subject': item['subject']?.toString() ?? 'સામાન્ય જ્ઞાન',
+      'topic': item['topic']?.toString() ?? '',
       'explanation': item['explanation']?.toString() ?? '',
       'topic_id': item['topic_id']?.toString(),
     });
@@ -394,7 +463,153 @@ class AdminDataManager {
     return success;
   }
 
-  /// Add Question and map in Firestore
+  /// Import full Mock Test with its MCQs in bulk (100, 200 questions etc.)
+  /// Maps each question to the mock test AND sets its subject & topic for syllabus integration!
+  Future<Map<String, dynamic>> importMockTestWithQuestions({
+    required String testId,
+    required String examId,
+    required String title,
+    required String description,
+    required bool isFree,
+    required int durationMinutes,
+    required List<Map<String, dynamic>> rawQuestionsList,
+    void Function(int current, int total)? onProgress,
+  }) async {
+    // 1. Create or overwrite the Mock Test document in Firestore
+    final testSuccess = await _firestoreSet('mock_tests', testId, {
+      'id': testId,
+      'exam_id': examId,
+      'title': title,
+      'description': description,
+      'is_free': isFree,
+      'duration_minutes': durationMinutes,
+      'total_questions': rawQuestionsList.length,
+      'positive_marks': 1.0,
+      'negative_marks': 0.25,
+      'created_at': DateTime.now().toIso8601String(),
+    });
+
+    if (!testSuccess) {
+      return {'success': false, 'error': 'મોક ટેસ્ટ Firebase માં સેવ કરી શક્યા નથી.'};
+    }
+
+    // Update local tests list
+    final existingTestIdx = tests.indexWhere((t) => t['id'] == testId);
+    final testEntry = {
+      'id': testId,
+      'exam': examId == 'psi' ? 'PSI / ASI' : 'કોન્સ્ટેબલ (LRD)',
+      'exam_id': examId,
+      'title': title,
+      'description': description,
+      'isFree': isFree,
+      'totalMcqs': rawQuestionsList.length,
+      'duration': durationMinutes,
+    };
+    if (existingTestIdx >= 0) {
+      tests[existingTestIdx] = testEntry;
+    } else {
+      tests.add(testEntry);
+    }
+    testQuestions[testId] = [];
+
+    // 2. Iterate and save all questions
+    int savedCount = 0;
+    for (int i = 0; i < rawQuestionsList.length; i++) {
+      final raw = rawQuestionsList[i];
+      final qId = raw['id']?.toString().isNotEmpty == true
+          ? raw['id'].toString()
+          : '${testId}_q_${i + 1}';
+
+      final qText = (raw['question_text'] ?? raw['question'] ?? '').toString();
+
+      List<String> optionsList = [];
+      if (raw['options'] is List) {
+        optionsList = (raw['options'] as List).map((e) => e.toString()).toList();
+      } else {
+        optionsList = [
+          (raw['optionA'] ?? raw['option_a'] ?? raw['a'] ?? '').toString(),
+          (raw['optionB'] ?? raw['option_b'] ?? raw['b'] ?? '').toString(),
+          (raw['optionC'] ?? raw['option_c'] ?? raw['c'] ?? '').toString(),
+          (raw['optionD'] ?? raw['option_d'] ?? raw['d'] ?? '').toString(),
+        ];
+      }
+
+      int correctIdx = 0;
+      final rawAns = raw['correct_option_index'] ?? raw['answer'] ?? raw['correct'] ?? raw['answer_index'];
+      if (rawAns is num) {
+        correctIdx = rawAns.toInt().clamp(0, 4);
+      } else if (rawAns is String) {
+        final s = rawAns.trim().toUpperCase();
+        if (s == 'B' || s == '1') correctIdx = 1;
+        else if (s == 'C' || s == '2') correctIdx = 2;
+        else if (s == 'D' || s == '3') correctIdx = 3;
+        else if (s == 'E' || s == '4') correctIdx = 4;
+        else if (int.tryParse(s) != null) correctIdx = int.parse(s).clamp(0, 4);
+      }
+
+      final subject = (raw['subject'] ?? raw['subject_name'] ?? 'સામાન્ય જ્ઞાન').toString();
+      final topic = (raw['topic'] ?? raw['topic_name'] ?? raw['topic_title'] ?? '').toString();
+      final explanation = (raw['explanation'] ?? raw['desc'] ?? '').toString();
+      final topicId = (raw['topic_id'] ?? '').toString();
+
+      final questionDoc = {
+        'id': qId,
+        'test_id': testId,
+        'exam_id': examId,
+        'question_text': qText,
+        'options': optionsList,
+        'correct_option_index': correctIdx,
+        'explanation': explanation,
+        'subject': subject,
+        'topic': topic,
+        'topic_id': topicId,
+        'created_at': DateTime.now().toIso8601String(),
+      };
+
+      // Set to Firestore `questions`
+      await _firestoreSet('questions', qId, questionDoc);
+
+      // Set mapping to `mock_test_questions`
+      final mtqId = 'mtq_${testId}_${i + 1}';
+      await _firestoreSet('mock_test_questions', mtqId, {
+        'id': mtqId,
+        'test_id': testId,
+        'question_id': qId,
+        'position': i + 1,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
+      String correctLetter = 'A';
+      if (correctIdx == 1) correctLetter = 'B';
+      if (correctIdx == 2) correctLetter = 'C';
+      if (correctIdx == 3) correctLetter = 'D';
+      if (correctIdx == 4) correctLetter = 'E';
+
+      testQuestions[testId]?.add({
+        'id': qId,
+        'question': qText,
+        'optionA': optionsList.isNotEmpty ? optionsList[0] : '',
+        'optionB': optionsList.length > 1 ? optionsList[1] : '',
+        'optionC': optionsList.length > 2 ? optionsList[2] : '',
+        'optionD': optionsList.length > 3 ? optionsList[3] : '',
+        'optionE': optionsList.length > 4 ? optionsList[4] : 'પ્રયાસ કરેલ નથી',
+        'correct': correctLetter,
+        'subject': subject,
+        'topic': topic,
+        'explanation': explanation,
+        'topic_id': topicId,
+      });
+
+      savedCount++;
+      if (onProgress != null) {
+        onProgress(savedCount, rawQuestionsList.length);
+      }
+    }
+
+    return {'success': true, 'count': savedCount};
+  }
+
+  /// Add single question to Firestore
   Future<bool> addQuestion(String testId, Map<String, dynamic> question) async {
     final questionId = 'q_${DateTime.now().millisecondsSinceEpoch}';
 
@@ -416,10 +631,12 @@ class AdminDataManager {
       'test_id': testId,
       'exam_id': testId.startsWith('psi') ? 'psi' : 'constable',
       'subject': question['subject'] ?? 'સામાન્ય જ્ઞાન',
+      'topic': question['topic'] ?? '',
       'question_text': question['question'] ?? '',
       'options': optionsList,
       'correct_option_index': correctIdx,
       'explanation': question['explanation'] ?? '',
+      'topic_id': question['topic_id'] ?? '',
       'created_at': DateTime.now().toIso8601String(),
     });
 
@@ -470,6 +687,7 @@ class AdminDataManager {
 
         _firestoreSet('questions', questionId, {
           'subject': question['subject'] ?? 'સામાન્ય જ્ઞાન',
+          'topic': question['topic'] ?? '',
           'question_text': question['question'] ?? '',
           'options': optionsList,
           'correct_option_index': correctIdx,
@@ -502,6 +720,7 @@ class AdminDataManager {
       final studentId = student['id']?.toString();
       if (studentId != null && studentId.isNotEmpty) {
         _firestoreSet('profiles', studentId, {'coins': newCoins});
+        _firestoreSet('users', studentId, {'coins': newCoins});
       }
     }
   }

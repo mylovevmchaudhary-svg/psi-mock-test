@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../security_vault.dart';
+import '../admin_data_manager.dart';
 import 'admin_dashboard.dart';
 
 class AdminLoginScreen extends StatefulWidget {
@@ -13,9 +13,10 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
   String _errorMessage = '';
 
-  void _handleAdminLogin() {
+  void _handleAdminLogin() async {
     final email = _emailController.text.trim();
     final pass = _passwordController.text.trim();
 
@@ -24,13 +25,26 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       return;
     }
 
-    if (SecurityVault.verifyAdminCredentials(email, pass)) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const AdminDashboardScreen()),
-      );
-    } else {
-      setState(() => _errorMessage = 'અમાન્ય એડમિન ઓળખપત્ર! એક્સેસ નકારાયેલ છે.');
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    final res = await AdminDataManager().loginAdmin(email, pass);
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+
+      if (res['success'] == true) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const AdminDashboardScreen()),
+        );
+      } else {
+        setState(() {
+          _errorMessage = res['error']?.toString() ?? 'અમાન્ય એડમિન ઓળખપત્ર! એક્સેસ નકારાયેલ છે.';
+        });
+      }
     }
   }
 
@@ -72,7 +86,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                 const SizedBox(height: 16),
 
                 const Text(
-                  'ગુજરાત પોલીસ માસ્ટર એડમિન',
+                  'PSI Mock Test - માસ્ટર એડમિન',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -81,7 +95,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  'માત્ર અધિકૃત સંચાલક માટે જ સુરક્ષિત લૉગિન',
+                  'Firebase Authentication વડે સુરક્ષિત એડમિન લૉગિન',
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 const SizedBox(height: 20),
@@ -108,8 +122,8 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
-                    labelText: 'એડમિન ઈમેલ (Admin Email)',
-                    hintText: 'admin@police.gov.in',
+                    labelText: 'એડમિન ઈમેલ (Firebase Email)',
+                    hintText: 'admin@psimocktest.com',
                     prefixIcon: const Icon(Icons.admin_panel_settings_outlined),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -121,7 +135,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
-                    labelText: 'એડમિન પાસવર્ડ (Password)',
+                    labelText: 'એડમિન પાસવર્ડ (Firebase Password)',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
@@ -140,23 +154,29 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                     minimumSize: const Size(double.infinity, 48),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  icon: const Icon(Icons.login, color: Color(0xFFFFC107)),
-                  label: const Text(
-                    'સુરક્ષિત લૉગિન કરો',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  icon: _isLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : const Icon(Icons.login, color: Color(0xFFFFC107)),
+                  label: Text(
+                    _isLoading ? 'ચકાસણી થઈ રહી છે...' : 'સુરક્ષિત લૉગિન કરો',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
-                  onPressed: _handleAdminLogin,
+                  onPressed: _isLoading ? null : _handleAdminLogin,
                 ),
                 const SizedBox(height: 16),
 
-                // End-to-End Encryption Badge
+                // Firebase Security Badge
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: const [
                     Icon(Icons.lock, size: 14, color: Color(0xFF2E7D32)),
                     SizedBox(width: 4),
                     Text(
-                      '256-bit SSL • Row Level Security Enforced',
+                      'Google Firebase Cloud Auth • TLS 1.3 Encryption',
                       style: TextStyle(fontSize: 11, color: Color(0xFF2E7D32), fontWeight: FontWeight.w600),
                     ),
                   ],

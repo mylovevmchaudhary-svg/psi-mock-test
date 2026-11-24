@@ -161,7 +161,7 @@ class _SplashScreenState extends State<SplashScreen>
             right: 0,
             child: Center(
               child: Text(
-                'Powered by Supabase Cloud Database',
+                'Powered by Firebase Cloud Database',
                 style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.4)),
               ),
             ),

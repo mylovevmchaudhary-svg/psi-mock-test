@@ -263,9 +263,9 @@ class FirebaseService {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final userId = jsonResponse['localId']?.toString();
 
-        // Save student profile to Cloud Firestore `profiles` collection
+        // Save student profile to Cloud Firestore `profiles` and `users` collections
         if (userId != null && userId.isNotEmpty) {
-          await _firestoreSetDoc('profiles', userId, {
+          final userProfile = {
             'id': userId,
             'name': name,
             'email': email,
@@ -273,7 +273,10 @@ class FirebaseService {
             'my_referral_code': _user.myReferralCode,
             'referred_by': referralCode ?? '',
             'created_at': DateTime.now().toIso8601String(),
-          });
+            'is_active': true,
+          };
+          await _firestoreSetDoc('profiles', userId, userProfile);
+          await _firestoreSetDoc('users', userId, userProfile);
         }
 
         _user.register(userName: name, userEmail: email, referralCode: referralCode, uid: userId);
@@ -328,7 +331,8 @@ class FirebaseService {
         int coinsToSet = 30;
 
         if (userId != null && userId.isNotEmpty) {
-          final profileDoc = await _firestoreGetDoc('profiles', userId);
+          final profileDoc = await _firestoreGetDoc('profiles', userId) ??
+              await _firestoreGetDoc('users', userId);
           if (profileDoc != null) {
             final remoteCoins = (profileDoc['coins'] as num?)?.toInt();
             final remoteName = profileDoc['name']?.toString();
@@ -336,14 +340,17 @@ class FirebaseService {
             if (remoteName != null && remoteName.isNotEmpty) nameToSet = remoteName;
           } else {
             // Upsert initial profile if first login
-            await _firestoreSetDoc('profiles', userId, {
+            final initialData = {
               'id': userId,
               'name': nameToSet,
               'email': email,
               'coins': coinsToSet,
               'my_referral_code': _user.myReferralCode,
               'created_at': DateTime.now().toIso8601String(),
-            });
+              'is_active': true,
+            };
+            await _firestoreSetDoc('profiles', userId, initialData);
+            await _firestoreSetDoc('users', userId, initialData);
           }
         }
 
@@ -575,8 +582,32 @@ class FirebaseService {
   }
 
   /// Fetch MCQs for a specific syllabus topic from Firestore `questions`
+  /// Intelligently matches by topic_id, topic title (Gujarati/English), or subject keyword
   Future<List<Question>> fetchQuestionsForTopic(String topicId, [String? subjectGujarati]) async {
-    final docs = await _firestoreQuery('questions', field: 'topic_id', value: topicId);
+    List<Map<String, dynamic>> docs =
+        await _firestoreQuery('questions', field: 'topic_id', value: topicId);
+
+    if (docs.isEmpty && subjectGujarati != null && subjectGujarati.isNotEmpty) {
+      docs = await _firestoreQuery('questions', field: 'topic', value: subjectGujarati);
+      if (docs.isEmpty) {
+        docs = await _firestoreQuery('questions', field: 'subject', value: subjectGujarati);
+      }
+    }
+
+    if (docs.isEmpty) {
+      final allQ = await _firestoreListDocs('questions', pageSize: 500);
+      final target = (subjectGujarati ?? topicId).toLowerCase().trim();
+      final filtered = allQ.where((d) {
+        final t = (d['topic']?.toString() ?? '').toLowerCase().trim();
+        final s = (d['subject']?.toString() ?? '').toLowerCase().trim();
+        final tid = (d['topic_id']?.toString() ?? '').toLowerCase().trim();
+        return tid == topicId.toLowerCase() ||
+            (target.isNotEmpty &&
+                (t.contains(target) || target.contains(t) || s.contains(target)));
+      }).toList();
+      return filtered.map((d) => _mapToQuestion(d)).toList();
+    }
+
     return docs.map((d) => _mapToQuestion(d)).toList();
   }
 
