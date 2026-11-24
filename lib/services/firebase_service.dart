@@ -271,6 +271,7 @@ class FirebaseService {
               'id': userId,
               'name': name.trim(),
               'email': email.trim(),
+              'role': 'student',
               'coins': initialCoins,
               'my_referral_code': _user.myReferralCode,
               'referred_by': referralCode?.trim() ?? '',

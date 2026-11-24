@@ -196,9 +196,37 @@ class AdminDataManager {
       final Map<String, dynamic> json = jsonDecode(body);
 
       if (res.statusCode >= 200 && res.statusCode < 300) {
+        final uid = json['localId']?.toString();
+        final emailStr = (json['email']?.toString() ?? email.trim()).toLowerCase();
+
+        // Strict Admin Authorization Check:
+        // Ensures student accounts cannot access the admin console!
+        final adminDocs = await _firestoreList('admins');
+        if (adminDocs.isNotEmpty) {
+          final isAuthorized = adminDocs.any((d) =>
+              (d['email']?.toString().toLowerCase() == emailStr) ||
+              (d['id']?.toString() == uid));
+          if (!isAuthorized) {
+            return {
+              'success': false,
+              'error': 'એક્સેસ નકારાયેલ! આ ઈમેલ પાસે એડમિન પરવાનગી નથી. ફક્ત અધિકૃત એડમિન જ લૉગિન કરી શકે છે.'
+            };
+          }
+        } else {
+          // First Admin Login: Authorize and record this email as the Primary Admin
+          if (uid != null && uid.isNotEmpty) {
+            await _firestoreSet('admins', uid, {
+              'id': uid,
+              'email': emailStr,
+              'role': 'admin',
+              'created_at': DateTime.now().toIso8601String(),
+            });
+          }
+        }
+
         adminToken = json['idToken']?.toString();
-        adminEmail = json['email']?.toString() ?? email.trim();
-        adminUid = json['localId']?.toString();
+        adminEmail = emailStr;
+        adminUid = uid;
         return {'success': true};
       } else {
         final errorObj = json['error'];
