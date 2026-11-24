@@ -276,7 +276,7 @@ class FirebaseService {
           });
         }
 
-        _user.register(userName: name, userEmail: email, referralCode: referralCode);
+        _user.register(userName: name, userEmail: email, referralCode: referralCode, uid: userId);
         _user.setCoins(initialCoins);
 
         return {'success': true, 'userId': userId};
@@ -347,7 +347,7 @@ class FirebaseService {
           }
         }
 
-        _user.login(userEmail: email);
+        _user.login(userEmail: email, userName: nameToSet, uid: userId);
         _user.name = nameToSet;
         _user.setCoins(coinsToSet);
 

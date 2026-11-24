@@ -11,6 +11,7 @@ class UserModel {
   }
 
   bool isLoggedIn = false;
+  String userId = '';
   String name = 'વિદ્યાર્થી';
   String email = '';
   String myReferralCode = 'KHAKHI2026';
@@ -60,6 +61,7 @@ class UserModel {
           }
           name = data['name']?.toString() ?? name;
           email = storedEmail;
+          userId = data['userId']?.toString() ?? '';
           coins = (data['coins'] as num?)?.toInt() ?? coins;
           isLoggedIn = (data['isLoggedIn'] as bool?) ?? isLoggedIn;
           myReferralCode = data['myReferralCode']?.toString() ?? myReferralCode;
@@ -94,6 +96,7 @@ class UserModel {
       final data = {
         'name': name,
         'email': email,
+        'userId': userId,
         'coins': coins,
         'isLoggedIn': isLoggedIn,
         'myReferralCode': myReferralCode,
@@ -237,9 +240,11 @@ class UserModel {
     required String userName,
     required String userEmail,
     String? referralCode,
+    String? uid,
   }) {
     name = userName.trim().isNotEmpty ? userName.trim() : userEmail.split('@').first;
     email = userEmail.trim();
+    if (uid != null) userId = uid;
     isLoggedIn = true;
     coins = 30; // base welcome for real registration
     coinHistory.clear();
@@ -264,8 +269,9 @@ class UserModel {
     _saveToDisk();
   }
 
-  void login({required String userEmail, String? userName}) {
+  void login({required String userEmail, String? userName, String? uid}) {
     email = userEmail.trim();
+    if (uid != null) userId = uid;
     if (userName != null && userName.trim().isNotEmpty) {
       name = userName.trim();
     } else if (name.isEmpty || name == 'વિદ્યાર્થી') {
