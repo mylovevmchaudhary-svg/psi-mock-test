@@ -940,6 +940,52 @@ $code,"$title",1,180,200,2,"$subj","$topic","જો CAT = 24 અને DOG = 26 
     }
   }
 
+  /// Create or register a new Mock Test in Firestore and local state
+  Future<bool> createMockTest({
+    required String id,
+    required String examId,
+    required String title,
+    required String description,
+    required bool isFree,
+    required int durationMinutes,
+    required int totalQuestions,
+  }) async {
+    final success = await _firestoreSet('mock_tests', id, {
+      'id': id,
+      'exam_id': examId,
+      'title': title,
+      'description': description,
+      'is_free': isFree,
+      'duration_minutes': durationMinutes,
+      'total_questions': totalQuestions,
+      'total_marks': totalQuestions,
+      'positive_marks': 1.0,
+      'negative_marks': 0.25,
+      'created_at': DateTime.now().toIso8601String(),
+    });
+
+    if (success) {
+      final testEntry = {
+        'id': id,
+        'exam': examId.contains('psi') ? 'PSI / ASI' : 'કોન્સ્ટેબલ (LRD)',
+        'exam_id': examId,
+        'title': title,
+        'description': description,
+        'isFree': isFree,
+        'totalMcqs': 0,
+        'duration': durationMinutes,
+      };
+      final existingIdx = tests.indexWhere((t) => t['id'] == id);
+      if (existingIdx >= 0) {
+        tests[existingIdx] = testEntry;
+      } else {
+        tests.add(testEntry);
+      }
+      testQuestions[id] = [];
+    }
+    return success;
+  }
+
   /// Seed Official Syllabus to Firestore
   Future<Map<String, int>> seedOfficialSyllabus({void Function(String msg)? onProgress}) async {
     return await OfficialSyllabusMaster.seedToFirestore(_firestoreSet, onProgress: onProgress);
