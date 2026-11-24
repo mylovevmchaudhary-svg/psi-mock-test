@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../models/quiz_model.dart';
 import '../models/syllabus_model.dart';
 import '../models/user_model.dart';
+import '../data/official_syllabus_master.dart';
 import 'firebase_vault.dart';
 
 class FirebaseService {
@@ -250,8 +251,8 @@ class FirebaseService {
       request.headers.set('Content-Type', 'application/json');
 
       final authBody = {
-        'email': email,
-        'password': password,
+        'email': email.trim(),
+        'password': password.trim(),
         'returnSecureToken': true,
       };
 
@@ -263,23 +264,27 @@ class FirebaseService {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final userId = jsonResponse['localId']?.toString();
 
-        // Save student profile to Cloud Firestore `profiles` and `users` collections
+        // Save student profile to Cloud Firestore `profiles` and `users` collections (decoupled)
         if (userId != null && userId.isNotEmpty) {
-          final userProfile = {
-            'id': userId,
-            'name': name,
-            'email': email,
-            'coins': initialCoins,
-            'my_referral_code': _user.myReferralCode,
-            'referred_by': referralCode ?? '',
-            'created_at': DateTime.now().toIso8601String(),
-            'is_active': true,
-          };
-          await _firestoreSetDoc('profiles', userId, userProfile);
-          await _firestoreSetDoc('users', userId, userProfile);
+          try {
+            final userProfile = {
+              'id': userId,
+              'name': name.trim(),
+              'email': email.trim(),
+              'coins': initialCoins,
+              'my_referral_code': _user.myReferralCode,
+              'referred_by': referralCode?.trim() ?? '',
+              'created_at': DateTime.now().toIso8601String(),
+              'is_active': true,
+            };
+            await _firestoreSetDoc('profiles', userId, userProfile);
+            await _firestoreSetDoc('users', userId, userProfile);
+          } catch (profileErr) {
+            debugPrint('[FirebaseService] Non-fatal profile creation error: $profileErr');
+          }
         }
 
-        _user.register(userName: name, userEmail: email, referralCode: referralCode, uid: userId);
+        _user.register(userName: name.trim(), userEmail: email.trim(), referralCode: referralCode?.trim(), uid: userId);
         _user.setCoins(initialCoins);
 
         return {'success': true, 'userId': userId};
@@ -288,15 +293,22 @@ class FirebaseService {
         final errorMsg = errorObj is Map ? (errorObj['message'] ?? 'Sign up failed') : 'Sign up failed';
         String friendly = 'નોંધણી નિષ્ફળ થઈ.';
         if (errorMsg.toString().contains('EMAIL_EXISTS')) {
-          friendly = 'આ ઈમેલ પહેલેથી નોંધાયેલ છે.';
+          friendly = 'આ ઈમેલ પહેલેથી નોંધાયેલ છે. કૃપા કરીને લૉગિન કરો.';
         } else if (errorMsg.toString().contains('OPERATION_NOT_ALLOWED')) {
-          friendly = 'Firebase માં ઈમેલ/પાસવર્ડ ઓથોરાઈઝેશન સક્ષમ કરો.';
+          friendly = 'Firebase Console માં Email/Password Provider સક્ષમ કરો.';
+        } else if (errorMsg.toString().contains('WEAK_PASSWORD')) {
+          friendly = 'પાસવર્ડ ખૂબ સરળ છે. ઓછામાં ઓછા 6 અક્ષરોનો પાસવર્ડ દાખલ કરો.';
+        } else if (errorMsg.toString().contains('TOO_MANY_ATTEMPTS_TRY_LATER')) {
+          friendly = 'ઘણા પ્રયાસો થયા છે. કૃપા કરીને થોડી વાર પછી ફરી પ્રયાસ કરો.';
         }
         return {'success': false, 'error': friendly};
       }
     } catch (e) {
       debugPrint('[FirebaseService] SignUp error: $e');
-      return {'success': false, 'error': 'નેટવર્ક કનેક્શન તપાસો: $e'};
+      if (e is SocketException || e.toString().contains('SocketException') || e.toString().contains('Failed host lookup')) {
+        return {'success': false, 'error': 'ઇન્ટરનેટ કનેક્શન ઉપલબ્ધ નથી. કૃપા કરીને તમારું નેટવર્ક તપાસો.'};
+      }
+      return {'success': false, 'error': 'નોંધણી દરમિયાન ક્ષતિ આવી: $e'};
     }
   }
 
@@ -313,8 +325,8 @@ class FirebaseService {
       request.headers.set('Content-Type', 'application/json');
 
       final authBody = {
-        'email': email,
-        'password': password,
+        'email': email.trim(),
+        'password': password.trim(),
         'returnSecureToken': true,
       };
 
@@ -326,35 +338,39 @@ class FirebaseService {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final userId = jsonResponse['localId']?.toString();
 
-        // Fetch user profile from Firestore `profiles` collection
+        // Fetch user profile from Firestore `profiles` collection (Decoupled with inner try-catch)
         String nameToSet = email.split('@').first;
         int coinsToSet = 30;
 
         if (userId != null && userId.isNotEmpty) {
-          final profileDoc = await _firestoreGetDoc('profiles', userId) ??
-              await _firestoreGetDoc('users', userId);
-          if (profileDoc != null) {
-            final remoteCoins = (profileDoc['coins'] as num?)?.toInt();
-            final remoteName = profileDoc['name']?.toString();
-            if (remoteCoins != null) coinsToSet = remoteCoins;
-            if (remoteName != null && remoteName.isNotEmpty) nameToSet = remoteName;
-          } else {
-            // Upsert initial profile if first login
-            final initialData = {
-              'id': userId,
-              'name': nameToSet,
-              'email': email,
-              'coins': coinsToSet,
-              'my_referral_code': _user.myReferralCode,
-              'created_at': DateTime.now().toIso8601String(),
-              'is_active': true,
-            };
-            await _firestoreSetDoc('profiles', userId, initialData);
-            await _firestoreSetDoc('users', userId, initialData);
+          try {
+            final profileDoc = await _firestoreGetDoc('profiles', userId) ??
+                await _firestoreGetDoc('users', userId);
+            if (profileDoc != null) {
+              final remoteCoins = (profileDoc['coins'] as num?)?.toInt();
+              final remoteName = profileDoc['name']?.toString();
+              if (remoteCoins != null) coinsToSet = remoteCoins;
+              if (remoteName != null && remoteName.isNotEmpty) nameToSet = remoteName;
+            } else {
+              // Upsert initial profile if first login
+              final initialData = {
+                'id': userId,
+                'name': nameToSet,
+                'email': email.trim(),
+                'coins': coinsToSet,
+                'my_referral_code': _user.myReferralCode,
+                'created_at': DateTime.now().toIso8601String(),
+                'is_active': true,
+              };
+              await _firestoreSetDoc('profiles', userId, initialData);
+              await _firestoreSetDoc('users', userId, initialData);
+            }
+          } catch (profileErr) {
+            debugPrint('[FirebaseService] Non-fatal profile lookup error: $profileErr');
           }
         }
 
-        _user.login(userEmail: email, userName: nameToSet, uid: userId);
+        _user.login(userEmail: email.trim(), userName: nameToSet, uid: userId);
         _user.name = nameToSet;
         _user.setCoins(coinsToSet);
 
@@ -364,15 +380,26 @@ class FirebaseService {
         final errorMsg = errorObj is Map ? (errorObj['message'] ?? 'Login failed') : 'Login failed';
         String friendly = 'અમાન્ય ઈમેલ અથવા પાસવર્ડ.';
         if (errorMsg.toString().contains('EMAIL_NOT_FOUND')) {
-          friendly = 'આ ઈમેલથી કોઈ ખાતું મળ્યું નથી.';
-        } else if (errorMsg.toString().contains('INVALID_PASSWORD') || errorMsg.toString().contains('INVALID_LOGIN_CREDENTIALS')) {
-          friendly = 'પાસવર્ડ ખોટો છે.';
+          friendly = 'આ ઈમેલથી કોઈ ખાતું મળ્યું નથી. કૃપા કરીને પહેલા નવું એકાઉન્ટ બનાવો.';
+        } else if (errorMsg.toString().contains('INVALID_PASSWORD')) {
+          friendly = 'પાસવર્ડ ખોટો છે. કૃપા કરીને સાચો પાસવર્ડ દાખલ કરો.';
+        } else if (errorMsg.toString().contains('INVALID_LOGIN_CREDENTIALS')) {
+          friendly = 'અમાન્ય ઈમેલ અથવા પાસવર્ડ. કૃપા કરીને તમારી વિગતો તપાસો.';
+        } else if (errorMsg.toString().contains('USER_DISABLED')) {
+          friendly = 'આ એકાઉન્ટ નિષ્ક્રિય કરવામાં આવેલ છે. એડમિનનો સંપર્ક કરો.';
+        } else if (errorMsg.toString().contains('TOO_MANY_ATTEMPTS_TRY_LATER')) {
+          friendly = 'ઘણા અમાન્ય પ્રયાસો થયા છે. કૃપા કરીને થોડી વાર પછી પ્રયાસ કરો.';
+        } else if (errorMsg.toString().contains('OPERATION_NOT_ALLOWED')) {
+          friendly = 'Firebase Console માં Email/Password Provider સક્ષમ કરો.';
         }
         return {'success': false, 'error': friendly};
       }
     } catch (e) {
       debugPrint('[FirebaseService] SignIn error: $e');
-      return {'success': false, 'error': 'કૃપા કરીને ઇન્ટરનેટ કનેક્શન તપાસો.'};
+      if (e is SocketException || e.toString().contains('SocketException') || e.toString().contains('Failed host lookup')) {
+        return {'success': false, 'error': 'ઇન્ટરનેટ કનેક્શન ઉપલબ્ધ નથી. કૃપા કરીને તમારું નેટવર્ક તપાસો.'};
+      }
+      return {'success': false, 'error': 'લૉગિન નિષ્ફળ: ${e.toString()}'};
     }
   }
 
@@ -382,6 +409,43 @@ class FirebaseService {
     if (uid != null && uid.isNotEmpty) {
       await _firestoreSetDoc('profiles', uid, {'coins': coins});
     }
+  }
+
+  /// Record real Mock Test Attempt in Firestore `test_attempts` collection (Idempotent submission)
+  Future<bool> recordTestAttempt({
+    required String testId,
+    required String testTitle,
+    required String examId,
+    required double score,
+    required double totalMarks,
+    required int correctCount,
+    required int incorrectCount,
+    required int unattemptedCount,
+    required double accuracy,
+    required int timeSpentSeconds,
+    required Map<String, dynamic> subjectBreakdown,
+  }) async {
+    final uid = _user.userId ?? 'guest_${DateTime.now().millisecondsSinceEpoch}';
+    final attemptId = 'attempt_${uid}_${testId}_${DateTime.now().millisecondsSinceEpoch}';
+
+    return await _firestoreSetDoc('test_attempts', attemptId, {
+      'id': attemptId,
+      'user_id': uid,
+      'user_name': _user.name,
+      'user_email': _user.email,
+      'test_id': testId,
+      'test_title': testTitle,
+      'exam_id': examId,
+      'score': score,
+      'total_marks': totalMarks,
+      'correct_count': correctCount,
+      'incorrect_count': incorrectCount,
+      'unattempted_count': unattemptedCount,
+      'accuracy': accuracy,
+      'time_spent_seconds': timeSpentSeconds,
+      'subject_breakdown': subjectBreakdown,
+      'created_at': DateTime.now().toIso8601String(),
+    });
   }
 
   // =========================================================================
@@ -448,7 +512,9 @@ class FirebaseService {
 
         final tId = item['id']?.toString() ?? '';
         final isFreeVal = item['is_free'] == true;
-        final actualCount = counts[tId] ?? 0;
+        final mcqCountFromMtq = counts[tId] ?? 0;
+        final fallbackCount = (item['total_questions'] as num?)?.toInt() ?? 0;
+        final actualCount = mcqCountFromMtq > 0 ? mcqCountFromMtq : fallbackCount;
 
         list.add(MockTest(
           id: tId,
@@ -522,16 +588,67 @@ class FirebaseService {
     return counts;
   }
 
+  /// Seeds official syllabus to Firestore if not already present
+  Future<Map<String, int>> seedOfficialSyllabus() async {
+    return await OfficialSyllabusMaster.seedToFirestore(_firestoreSetDoc);
+  }
+
   /// Fetch dynamic Syllabus & Topics from Firestore `syllabus` & `syllabus_topics`
+  /// Gracefully falls back to OfficialSyllabusMaster if remote collections are empty.
   Future<List<SyllabusSubject>> fetchSyllabusWithTopics({String? examId}) async {
     final counts = await fetchTopicMcqCounts();
-    final syllabusDocs = await _firestoreListDocs('syllabus', pageSize: 100);
-    final topicDocs = await _firestoreListDocs('syllabus_topics', pageSize: 500);
+    List<Map<String, dynamic>> syllabusDocs = await _firestoreListDocs('syllabus', pageSize: 100);
+    if (syllabusDocs.isEmpty) {
+      syllabusDocs = await _firestoreListDocs('subjects', pageSize: 100);
+    }
+    List<Map<String, dynamic>> topicDocs = await _firestoreListDocs('syllabus_topics', pageSize: 500);
+    if (topicDocs.isEmpty) {
+      topicDocs = await _firestoreListDocs('topics', pageSize: 500);
+    }
+
+    final normalizedExamId = (examId == 'psi' || examId == 'gujarat_psi') ? 'gujarat_psi' : 'gujarat_lrd';
+
+    // Fallback directly to OfficialSyllabusMaster if Firestore has not yet been seeded
+    if (syllabusDocs.isEmpty) {
+      // Trigger background seed so Firestore is populated
+      OfficialSyllabusMaster.seedToFirestore(_firestoreSetDoc).catchError((_) => <String, int>{});
+
+      final masterSubjects = OfficialSyllabusMaster.getSubjectsForExam(normalizedExamId);
+      return masterSubjects.map((s) {
+        final sectionTopics = s.topics.map((t) {
+          final count = counts[t.topicId] ?? 0;
+          return SyllabusTopic(
+            id: t.topicId,
+            name: t.topicName,
+            nameGujarati: t.topicName,
+            syllabusId: s.subjectId,
+            keyPoints: [],
+            mcqCount: count,
+          );
+        }).toList();
+
+        int totalSubjMcqs = 0;
+        for (final st in sectionTopics) {
+          totalSubjMcqs += st.mcqCount;
+        }
+
+        return SyllabusSubject(
+          id: s.subjectId,
+          title: s.subjectName,
+          titleGujarati: s.subjectName,
+          iconName: s.getIconName(),
+          totalMarksWeightage: s.officialMarks,
+          examId: s.examId,
+          dynamicMcqCount: totalSubjMcqs,
+          topics: sectionTopics,
+        );
+      }).toList();
+    }
 
     // Group topics by syllabus_id
     final Map<String, List<SyllabusTopic>> topicsBySection = {};
     for (final t in topicDocs) {
-      final sylId = t['syllabus_id']?.toString() ?? '';
+      final sylId = (t['syllabus_id'] ?? t['subject_id'])?.toString() ?? '';
       final topicId = t['id']?.toString() ?? '';
       final gujTitle = t['title_gujarati']?.toString() ?? t['title']?.toString() ?? '';
       final engTitle = t['title']?.toString() ?? gujTitle;
@@ -553,9 +670,14 @@ class FirebaseService {
 
     final List<SyllabusSubject> subjects = [];
     for (final item in syllabusDocs) {
-      final exId = item['exam_id']?.toString() ?? 'constable';
-      if (examId != null && examId.isNotEmpty && exId != examId) {
-        continue;
+      final exId = item['exam_id']?.toString() ?? 'gujarat_lrd';
+      // Match either normalized ID or legacy ID
+      if (examId != null && examId.isNotEmpty) {
+        final isPsiFilter = examId == 'psi' || examId == 'gujarat_psi';
+        final isDocPsi = exId == 'psi' || exId == 'gujarat_psi';
+        if (isPsiFilter != isDocPsi) {
+          continue;
+        }
       }
 
       final subjectId = item['id']?.toString() ?? '';

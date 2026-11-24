@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/firebase_service.dart';
+import '../widgets/psi_mock_test_logo.dart';
 import 'main_navigation_screen.dart';
 import 'register_screen.dart';
 
@@ -86,30 +87,21 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // App Badge
-                  Container(
-                    width: 70,
-                    height: 70,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0D253F),
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: const Center(
-                      child: Icon(Icons.local_police, color: Color(0xFFFFC107), size: 38),
-                    ),
-                  ),
+                  // 3D PSI Mock Test Logo
+                  const PsiMockTestLogo(size: 82),
                   const SizedBox(height: 16),
                   const Text(
-                    'ગુજરાત પોલીસ તૈયારી',
+                    'PSI Mock Test',
                     style: TextStyle(
-                      fontSize: 22,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF0D253F),
+                      letterSpacing: 0.8,
                     ),
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'કોન્સ્ટેબલ (LRD) અને PSI / ASI પરીક્ષા પોર્ટલ 👮‍♂️',
+                    'Constable & PSI ઓનલાઇન મોક ટેસ્ટ પોર્ટલ',
                     style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                   const SizedBox(height: 24),

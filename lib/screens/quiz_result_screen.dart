@@ -25,12 +25,15 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
       final userAns = result.selectedAnswers[i];
       final isCorrect = userAns == q.correctOptionIndex;
       final isIncorrect = userAns != null && userAns != -1 && userAns != 4 && !isCorrect;
+      final isUnattempted = userAns == null || userAns == -1 || userAns == 4;
 
       if (_solutionFilter == 'All') {
         filteredQuestionsWithIndex.add({'index': i, 'question': q});
       } else if (_solutionFilter == 'Incorrect' && isIncorrect) {
         filteredQuestionsWithIndex.add({'index': i, 'question': q});
       } else if (_solutionFilter == 'Correct' && isCorrect) {
+        filteredQuestionsWithIndex.add({'index': i, 'question': q});
+      } else if (_solutionFilter == 'Unattempted' && isUnattempted) {
         filteredQuestionsWithIndex.add({'index': i, 'question': q});
       }
     }
@@ -123,9 +126,143 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-            // Filter Tabs for Answer Review
+            // 1. Subject-Wise Breakdown Table
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: Colors.grey.withOpacity(0.2)),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: const [
+                          Icon(Icons.pie_chart, size: 18, color: Color(0xFF0D253F)),
+                          SizedBox(width: 6),
+                          Text(
+                            'વિષયવાર ગુણ વિશ્લેષણ (Subject Breakdown)',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0D253F)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: DataTable(
+                          columnSpacing: 16,
+                          headingRowHeight: 36,
+                          dataRowMinHeight: 36,
+                          dataRowMaxHeight: 44,
+                          headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF0D253F)),
+                          columns: const [
+                            DataColumn(label: Text('વિષય')),
+                            DataColumn(label: Text('કુલ')),
+                            DataColumn(label: Text('સાચા')),
+                            DataColumn(label: Text('ખોટા')),
+                            DataColumn(label: Text('ગુણ')),
+                            DataColumn(label: Text('સચોટતા')),
+                          ],
+                          rows: result.subjectBreakdown.entries.map((entry) {
+                            final data = entry.value;
+                            return DataRow(cells: [
+                              DataCell(Text(
+                                entry.key,
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                              )),
+                              DataCell(Text('${data['total']}', style: const TextStyle(fontSize: 11))),
+                              DataCell(Text('${data['correct']}', style: const TextStyle(fontSize: 11, color: Color(0xFF2E7D32), fontWeight: FontWeight.bold))),
+                              DataCell(Text('${data['incorrect']}', style: const TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.bold))),
+                              DataCell(Text('${data['marks']}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0D253F)))),
+                              DataCell(Text('${data['accuracy']}%', style: const TextStyle(fontSize: 11))),
+                            ]);
+                          }).toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // 2. Topic-Wise Weakness & Strength Analysis
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: Colors.grey.withOpacity(0.2)),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: const [
+                          Icon(Icons.insights, size: 18, color: Color(0xFF0D253F)),
+                          SizedBox(width: 6),
+                          Text(
+                            'ટોપિકવાર વિશ્લેષણ (Topic Insights)',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0D253F)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ...result.topicBreakdown.entries.take(8).map((entry) {
+                        final total = entry.value['total'] as int;
+                        final correct = entry.value['correct'] as int;
+                        final double pct = total > 0 ? (correct / total) * 100 : 0.0;
+                        final isStrong = pct >= 60;
+
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isStrong ? Icons.thumb_up : Icons.warning_amber_rounded,
+                                size: 14,
+                                color: isStrong ? const Color(0xFF2E7D32) : Colors.orange,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  entry.key,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                                ),
+                              ),
+                              Text(
+                                '$correct / $total (${pct.toStringAsFixed(0)}%)',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: isStrong ? const Color(0xFF2E7D32) : Colors.orange.shade800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // 3. Filter Tabs for Answer Review
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
@@ -146,6 +283,7 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                       DropdownMenuItem(value: 'All', child: Text('બધા પ્રશ્નો')),
                       DropdownMenuItem(value: 'Incorrect', child: Text('માત્ર ખોટા')),
                       DropdownMenuItem(value: 'Correct', child: Text('માત્ર સાચા')),
+                      DropdownMenuItem(value: 'Unattempted', child: Text('છોડી દીધેલ')),
                     ],
                     onChanged: (val) {
                       if (val != null) setState(() => _solutionFilter = val);

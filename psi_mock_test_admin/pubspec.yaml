@@ -1,5 +1,5 @@
-name: police_admin_app
-description: "Dedicated Master Admin Panel for Gujarat Police Prep App"
+name: psi_mock_test_admin
+description: "PSI Mock Test - Master Admin Console"
 publish_to: "none"
 version: 1.0.0+1
 

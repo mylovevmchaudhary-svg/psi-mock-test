@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../admin_data_manager.dart';
 import 'admin_login_screen.dart';
 
@@ -420,12 +421,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             Icon(Icons.shield, color: Color(0xFFFFC107), size: 20),
             SizedBox(width: 8),
             Text(
-              'PSI Admin Console',
+              'PSI Mock Test - Admin Console',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
             ),
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.menu_book, color: Color(0xFFFFC107), size: 22),
+            tooltip: 'સત્તાવાર સિલેબસ સીડ કરો (Seed Official Syllabus)',
+            onPressed: _seedOfficialSyllabus,
+          ),
           IconButton(
             icon: const Icon(Icons.sync, color: Color(0xFFFFC107), size: 22),
             tooltip: 'ડેટા રિફ્રેશ કરો (Firebase Live Sync)',
@@ -942,38 +948,77 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
+  void _seedOfficialSyllabus() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(color: Color(0xFF0D253F)),
+                SizedBox(height: 16),
+                Text('સત્તાવાર સિલેબસ (PSI & LRD) Firebase માં સીડ થઈ રહ્યો છે...',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final res = await _adminData.seedOfficialSyllabus();
+    if (mounted) {
+      Navigator.pop(context);
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: const [
+              Icon(Icons.check_circle, color: Color(0xFF2E7D32)),
+              SizedBox(width: 8),
+              Text('સિલેબસ સીડ પૂર્ણ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Text(
+            'Firebase માં સત્તાવાર સિલેબસ સચવાઈ ગયો છે:\n\n'
+            '• સત્તાવાર પરીક્ષાઓ: ${res['exams']}\n'
+            '• સત્તાવાર વિષયો: ${res['subjects']}\n'
+            '• સત્તાવાર ટોપિક્સ: ${res['topics']}\n\n'
+            'વિદ્યાર્થી એપ અને એડમિન બંનેમાં આ લાઈવ ઉપલબ્ધ છે.',
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D253F), foregroundColor: Colors.white),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('સમજાયું (OK)'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
   void _showBulkUploadDialog({bool createNewTest = false}) {
-    final titleCtrl = TextEditingController(text: 'મોક ટેસ્ટ ${_adminData.tests.length + 1}');
-    final descCtrl = TextEditingController(text: '200 પ્રશ્નો સાથે નવો મોક ટેસ્ટ');
+    final titleCtrl = TextEditingController(text: 'PSI મોક ટેસ્ટ ${_adminData.tests.length + 1}');
+    final descCtrl = TextEditingController(text: '200 પ્રશ્નો સાથે સંપૂર્ણ પ્રશ્નપત્ર (સિંગલ PDF સ્ટાઇલ)');
     final durationCtrl = TextEditingController(text: '180');
     final contentCtrl = TextEditingController();
-    String selectedExam = 'constable';
+    String selectedExam = 'gujarat_psi';
     bool isFreeTest = false;
     bool isNewTestMode = createNewTest || _selectedTestId.isEmpty;
     String targetTestId = _selectedTestId;
-    String parseStatus = '';
+
+    ImportValidationResult? validationResult;
+    bool isValidating = false;
     bool isImporting = false;
     int progressCurrent = 0;
     int progressTotal = 0;
-
-    const sampleJson = '''[
-  {
-    "question": "ભારતનું બંધારણ કઈ તારીખે અમલમાં આવ્યું?",
-    "options": ["26 જાન્યુઆરી 1950", "15 ઓગસ્ટ 1947", "26 નવેમ્બર 1949", "30 જાન્યુઆરી 1948"],
-    "answer": 0,
-    "explanation": "26 જાન્યુઆરી 1950 ના રોજ ભારત પ્રજાસત્તાક બન્યું.",
-    "subject": "ભારતનું બંધારણ",
-    "topic": "બંધારણનું આમુખ અને વિકાસ"
-  },
-  {
-    "question": "IPC ની કલમ 302 શેના માટે છે?",
-    "options": ["ખૂનની સજા", "ચોરીની સજા", "લૂંટની સજા", "છેતરપિંડીની સજા"],
-    "answer": 0,
-    "explanation": "IPC 302 ખૂન માટેની સજા દર્શાવે છે.",
-    "subject": "કાયદો",
-    "topic": "ભારતીય દંડ સંહિતા (IPC)"
-  }
-]''';
+    String progressStatus = '';
 
     showDialog(
       context: context,
@@ -983,24 +1028,76 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: const [
-              Icon(Icons.cloud_upload, color: Color(0xFF0D253F)),
+              Icon(Icons.table_chart, color: Color(0xFF0D253F)),
               SizedBox(width: 8),
-              Text('ઇમ્પોર્ટ મોક ટેસ્ટ અને MCQs', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Expanded(
+                child: Text('17-કૉલમ CSV/Excel ઇમ્પોર્ટ એન્જિન',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
             ],
           ),
           content: Container(
-            width: 540,
-            constraints: const BoxConstraints(maxHeight: 580),
+            width: 620,
+            constraints: const BoxConstraints(maxHeight: 640),
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Top Toolbar: Copy Template & Sample
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F0FE),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFB3D4FC)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline, size: 18, color: Color(0xFF1967D2)),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            '17 સત્તાવાર કૉલમ: examCode, testTitle, testNumber, durationMinutes, totalMarks, questionNumber, subjectName, topicName, questionText, optionA-D, correctOption, explanation, difficulty, language.',
+                            style: TextStyle(fontSize: 11, color: Color(0xFF1967D2)),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.copy, size: 14),
+                          label: const Text('નમૂનો કૉપી', style: TextStyle(fontSize: 11)),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          ),
+                          onPressed: () {
+                            final template = AdminDataManager.generateSampleCsvTemplate(examId: selectedExam);
+                            Clipboard.setData(ClipboardData(text: template));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('17-કૉલમ CSV નમૂનો ક્લિપબોર્ડમાં કૉપી થયો! 📋')),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 4),
+                        TextButton(
+                          onPressed: () {
+                            contentCtrl.text = AdminDataManager.generateSampleCsvTemplate(examId: selectedExam);
+                            setDialogState(() {
+                              validationResult = null;
+                            });
+                          },
+                          child: const Text('સેમ્પલ ભરો', style: TextStyle(fontSize: 11)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Mode selector
                   Row(
                     children: [
                       Expanded(
                         child: ChoiceChip(
-                          label: const Text('નવો મોક ટેસ્ટ + MCQs'),
+                          label: const Text('નવો 200-પ્રશ્નોનો મોક ટેસ્ટ'),
                           selected: isNewTestMode,
                           onSelected: (sel) {
                             if (sel) setDialogState(() => isNewTestMode = true);
@@ -1024,17 +1121,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   if (isNewTestMode) ...[
                     DropdownButtonFormField<String>(
                       value: selectedExam,
-                      decoration: const InputDecoration(labelText: 'પરીક્ષા (Exam)', border: OutlineInputBorder()),
+                      decoration: const InputDecoration(labelText: 'પરીક્ષા પસંદ કરો (Exam)', border: OutlineInputBorder()),
                       items: const [
-                        DropdownMenuItem(value: 'constable', child: Text('કોન્સ્ટેબલ (LRD)')),
-                        DropdownMenuItem(value: 'psi', child: Text('PSI / ASI')),
+                        DropdownMenuItem(value: 'gujarat_psi', child: Text('ગુજરાત પોલીસ PSI (Paper 1 - 200 MCQs)')),
+                        DropdownMenuItem(value: 'gujarat_lrd', child: Text('ગુજરાત પોલીસ LRD / કોન્સ્ટેબલ (200 MCQs)')),
                       ],
                       onChanged: (val) {
                         if (val != null) {
                           setDialogState(() {
                             selectedExam = val;
                             final count = _adminData.tests.where((t) => t['exam_id'] == val).length + 1;
-                            titleCtrl.text = val == 'psi' ? 'PSI મોક ટેસ્ટ 0$count' : 'કોન્સ્ટેબલ મોક ટેસ્ટ 0$count';
+                            titleCtrl.text = val == 'gujarat_psi' ? 'PSI મોક ટેસ્ટ 0$count' : 'કોન્સ્ટેબલ મોક ટેસ્ટ 0$count';
+                            validationResult = null;
                           });
                         }
                       },
@@ -1082,31 +1180,137 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ],
                   const SizedBox(height: 12),
 
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('MCQ ડેટા પેસ્ટ કરો (JSON અથવા CSV):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                      TextButton.icon(
-                        icon: const Icon(Icons.code, size: 14),
-                        label: const Text('નમૂના JSON ભરો', style: TextStyle(fontSize: 11)),
-                        onPressed: () {
-                          contentCtrl.text = sampleJson;
-                          setDialogState(() {});
-                        },
-                      ),
-                    ],
+                  const Text(
+                    'CSV અથવા Excel માંથી કૉપી કરેલ ડેટા અહીં પેસ્ટ કરો:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
 
                   TextField(
                     controller: contentCtrl,
                     maxLines: 8,
                     style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
                     decoration: const InputDecoration(
-                      hintText: 'અહીં ChatGPT માંથી બનાવેલ JSON અથવા CSV લાઈનો પેસ્ટ કરો...',
+                      hintText: 'examCode,testTitle,testNumber,durationMinutes,totalMarks,questionNumber,subjectName,topicName,questionText,optionA,optionB,optionC,optionD,correctOption,explanation,difficulty,language...',
                       border: OutlineInputBorder(),
                     ),
+                    onChanged: (_) {
+                      if (validationResult != null) {
+                        setDialogState(() => validationResult = null);
+                      }
+                    },
                   ),
+                  const SizedBox(height: 8),
+
+                  // Validation Action Button
+                  Row(
+                    children: [
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1565C0),
+                          foregroundColor: Colors.white,
+                        ),
+                        icon: const Icon(Icons.fact_check, size: 16),
+                        label: const Text('ડેટા ચકાસો (Validate CSV)', style: TextStyle(fontSize: 12)),
+                        onPressed: isValidating || isImporting
+                            ? null
+                            : () {
+                                final text = contentCtrl.text.trim();
+                                if (text.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('કૃપા કરીને CSV ડેટા પેસ્ટ કરો.')),
+                                  );
+                                  return;
+                                }
+
+                                setDialogState(() => isValidating = true);
+                                final result = _adminData.validateCsvData(
+                                  text,
+                                  fallbackExamId: selectedExam,
+                                  fallbackTitle: titleCtrl.text.trim(),
+                                  fallbackDuration: int.tryParse(durationCtrl.text.trim()) ?? 180,
+                                );
+
+                                setDialogState(() {
+                                  isValidating = false;
+                                  validationResult = result;
+                                });
+                              },
+                      ),
+                    ],
+                  ),
+
+                  // Validation Summary Report
+                  if (validationResult != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: validationResult!.isValid ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: validationResult!.isValid ? const Color(0xFF81C784) : const Color(0xFFE57373),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                validationResult!.isValid ? Icons.check_circle : Icons.error,
+                                color: validationResult!.isValid ? const Color(0xFF2E7D32) : Colors.red,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                validationResult!.isValid
+                                    ? 'ચકાસણી સફળ: તમામ પ્રશ્નો માન્ય છે ✅'
+                                    : 'ચકાસણી નિષ્ફળ: ક્ષતિઓ મળી આવી ❌',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: validationResult!.isValid ? const Color(0xFF2E7D32) : Colors.red,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildStatBadge('કુલ પંક્તિઓ', '${validationResult!.totalRows}', Colors.black87),
+                              _buildStatBadge('માન્ય MCQs', '${validationResult!.validCount}', const Color(0xFF2E7D32)),
+                              _buildStatBadge('ક્ષતિઓ', '${validationResult!.errorCount}', Colors.red),
+                              _buildStatBadge('ડુપ્લિકેટ', '${validationResult!.duplicateInFileCount}', Colors.orange),
+                            ],
+                          ),
+                          if (validationResult!.errors.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            const Text('ક્ષતિઓની વિગત:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.red)),
+                            const SizedBox(height: 4),
+                            Container(
+                              constraints: const BoxConstraints(maxHeight: 120),
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: Colors.red.shade200),
+                              ),
+                              child: ListView.builder(
+                                shrinkWrap: true,
+                                itemCount: validationResult!.errors.length,
+                                itemBuilder: (ctx, idx) => Text(
+                                  '• ${validationResult!.errors[idx]}',
+                                  style: const TextStyle(fontSize: 10, color: Colors.red),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
 
                   if (isImporting) ...[
                     const SizedBox(height: 14),
@@ -1116,20 +1320,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Firebase માં સેવ થઈ રહ્યું છે: $progressCurrent / $progressTotal...',
+                      '$progressStatus ($progressCurrent / $progressTotal)',
                       style: const TextStyle(fontSize: 12, color: Color(0xFF2E7D32), fontWeight: FontWeight.bold),
-                    ),
-                  ],
-
-                  if (parseStatus.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      parseStatus,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: parseStatus.contains('ક્ષતિ') ? Colors.red : const Color(0xFF2E7D32),
-                        fontWeight: FontWeight.bold,
-                      ),
                     ),
                   ],
                 ],
@@ -1142,115 +1334,102 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               child: const Text('રદ'),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D253F), foregroundColor: Colors.white),
-              onPressed: isImporting ? null : () async {
-                final rawText = contentCtrl.text.trim();
-                if (rawText.isEmpty) {
-                  setDialogState(() => parseStatus = 'કૃપા કરીને MCQ ડેટા પેસ્ટ કરો.');
-                  return;
-                }
-
-                List<Map<String, dynamic>> parsedList = [];
-
-                // Try JSON parsing first
-                if (rawText.startsWith('[') || rawText.startsWith('{')) {
-                  try {
-                    final decoded = jsonDecode(rawText);
-                    if (decoded is List) {
-                      for (final item in decoded) {
-                        if (item is Map<String, dynamic>) parsedList.add(item);
-                      }
-                    } else if (decoded is Map<String, dynamic>) {
-                      parsedList.add(decoded);
-                    }
-                  } catch (e) {
-                    setDialogState(() => parseStatus = 'JSON ફોર્મેટમાં ક્ષતિ છે: $e');
-                    return;
-                  }
-                } else {
-                  // CSV / Pipe-separated parsing
-                  final lines = rawText.split('\n');
-                  for (final line in lines) {
-                    final trimmed = line.trim();
-                    if (trimmed.isEmpty) continue;
-                    List<String> parts = trimmed.contains('|') ? trimmed.split('|') : trimmed.split(',');
-                    if (parts.length >= 6) {
-                      parsedList.add({
-                        'question': parts[0].trim(),
-                        'optionA': parts[1].trim(),
-                        'optionB': parts[2].trim(),
-                        'optionC': parts[3].trim(),
-                        'optionD': parts[4].trim(),
-                        'correct': parts[5].trim().toUpperCase(),
-                        'subject': parts.length > 6 ? parts[6].trim() : 'સામાન્ય જ્ઞાન',
-                        'topic': parts.length > 7 ? parts[7].trim() : '',
-                        'explanation': parts.length > 8 ? parts[8].trim() : '',
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0D253F),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: (validationResult != null && validationResult!.isValid && !isImporting)
+                  ? () async {
+                      setDialogState(() {
+                        isImporting = true;
+                        progressTotal = validationResult!.validQuestions.length;
+                        progressCurrent = 0;
+                        progressStatus = 'ઇમ્પોર્ટ શરૂ થઈ રહ્યું છે...';
                       });
+
+                      String finalTestId = targetTestId;
+                      if (isNewTestMode) {
+                        final existingCount = _adminData.tests.where((t) => t['exam_id'] == selectedExam).length + 1;
+                        finalTestId = '${selectedExam}_$existingCount';
+                      }
+
+                      final res = await _adminData.importValidatedMockTest(
+                        testId: finalTestId,
+                        examId: selectedExam,
+                        title: titleCtrl.text.trim(),
+                        description: descCtrl.text.trim(),
+                        isFree: isFreeTest,
+                        durationMinutes: int.tryParse(durationCtrl.text.trim()) ?? 180,
+                        validatedQuestions: validationResult!.validQuestions,
+                        onProgress: (cur, tot, status) {
+                          setDialogState(() {
+                            progressCurrent = cur;
+                            progressTotal = tot;
+                            progressStatus = status;
+                          });
+                        },
+                      );
+
+                      if (mounted) {
+                        Navigator.pop(ctx);
+                        if (res['success'] == true) {
+                          setState(() {
+                            _selectedTestId = finalTestId;
+                          });
+                          showDialog(
+                            context: context,
+                            builder: (sCtx) => AlertDialog(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              title: Row(
+                                children: const [
+                                  Icon(Icons.check_circle, color: Color(0xFF2E7D32)),
+                                  SizedBox(width: 8),
+                                  Text('ઇમ્પોર્ટ સફળ! 🎉', style: TextStyle(fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                              content: Text(
+                                'મોક ટેસ્ટ સફળતાપૂર્વક Firebase માં સચવાઈ ગયો!\n\n'
+                                '• કુલ પ્રશ્નો: ${res['total']}\n'
+                                '• નવા ઉમેરાયેલ પ્રશ્નો: ${res['newMcqs']}\n'
+                                '• ડુપ્લિકેટ ફરી વપરાયેલ (Central Bank): ${res['duplicateMcqs']}\n\n'
+                                'યુઝર એપ્લિકેશનમાં આ ટેસ્ટ સિંગલ PDF સ્ટાઇલમાં ઉપલબ્ધ થઈ ગયો છે.',
+                              ),
+                              actions: [
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D253F), foregroundColor: Colors.white),
+                                  onPressed: () => Navigator.pop(sCtx),
+                                  child: const Text('OK'),
+                                ),
+                              ],
+                            ),
+                          );
+                          _fetchRealData();
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: Colors.redAccent,
+                              content: Text('ઇમ્પોર્ટમાં ક્ષતિ: ${res['error']}'),
+                            ),
+                          );
+                        }
+                      }
                     }
-                  }
-                }
-
-                if (parsedList.isEmpty) {
-                  setDialogState(() => parseStatus = 'કોઈ માન્ય પ્રશ્નો મળ્યા નહીં. કૃપા કરીને ફોર્મેટ તપાસો.');
-                  return;
-                }
-
-                setDialogState(() {
-                  isImporting = true;
-                  progressTotal = parsedList.length;
-                  progressCurrent = 0;
-                  parseStatus = '${parsedList.length} પ્રશ્નો મળી આવ્યા. ઇમ્પોર્ટ ચાલુ છે...';
-                });
-
-                String finalTestId = targetTestId;
-                if (isNewTestMode) {
-                  final existingCount = _adminData.tests.where((t) => t['exam_id'] == selectedExam).length + 1;
-                  finalTestId = '${selectedExam}_$existingCount';
-                }
-
-                final res = await _adminData.importMockTestWithQuestions(
-                  testId: finalTestId,
-                  examId: selectedExam,
-                  title: titleCtrl.text.trim(),
-                  description: descCtrl.text.trim(),
-                  isFree: isFreeTest,
-                  durationMinutes: int.tryParse(durationCtrl.text.trim()) ?? 180,
-                  rawQuestionsList: parsedList,
-                  onProgress: (cur, tot) {
-                    setDialogState(() {
-                      progressCurrent = cur;
-                    });
-                  },
-                );
-
-                if (mounted) {
-                  Navigator.pop(ctx);
-                  if (res['success'] == true) {
-                    setState(() {
-                      _selectedTestId = finalTestId;
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        backgroundColor: const Color(0xFF2E7D32),
-                        content: Text('${res['count']} પ્રશ્નો સફળતાપૂર્વક Firebase માં ઇમ્પોર્ટ થયા! 🎉 (મોક ટેસ્ટ & સિલેબસ સિંક)'),
-                      ),
-                    );
-                    _fetchRealData();
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        backgroundColor: Colors.redAccent,
-                        content: Text('ઇમ્પોર્ટમાં ક્ષતિ: ${res['error']}'),
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('ઇમ્પોર્ટ શરૂ કરો'),
+                  : null,
+              child: const Text('Firebase માં ઇમ્પોર્ટ કરો (Confirm)'),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  static Widget _buildStatBadge(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+        const SizedBox(height: 2),
+        Text(label, style: const TextStyle(fontSize: 10, color: Colors.black54)),
+      ],
     );
   }
 

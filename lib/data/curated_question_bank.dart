@@ -5,6 +5,7 @@ class CuratedQuestionBank {
   // 100% Dynamic repository loaded from Firebase Cloud Firestore
   // ZERO hardcoded tests and ZERO hardcoded MCQs as requested by user!
   static final Map<String, List<Question>> _cachedQuestions = {};
+  static Map<String, List<Question>> get cachedQuestions => _cachedQuestions;
 
   // Dynamic Mock Tests cache grouped by Exam ID (Constable / PSI)
   static final Map<String, List<MockTest>> _dynamicTestsByExam = {};
@@ -50,13 +51,17 @@ class CuratedQuestionBank {
         }
       }
 
+      final psiList = liveTests.where((t) => t.examId == 'psi' || t.examId == 'gujarat_psi').toList();
+      final lrdList = liveTests.where((t) => t.examId == 'constable' || t.examId == 'gujarat_lrd').toList();
+
+      _dynamicTestsByExam['psi'] = psiList;
+      _dynamicTestsByExam['gujarat_psi'] = psiList;
+      _dynamicTestsByExam['constable'] = lrdList;
+      _dynamicTestsByExam['gujarat_lrd'] = lrdList;
+
       if (examId != null && examId.isNotEmpty) {
-        _dynamicTestsByExam[examId] = liveTests;
-      } else {
-        _dynamicTestsByExam['constable'] =
-            liveTests.where((t) => t.examId == 'constable').toList();
-        _dynamicTestsByExam['psi'] =
-            liveTests.where((t) => t.examId == 'psi').toList();
+        final isPsi = examId == 'psi' || examId == 'gujarat_psi';
+        return isPsi ? psiList : lrdList;
       }
       return liveTests;
     }
@@ -79,6 +84,10 @@ class CuratedQuestionBank {
   /// Get mock tests for Constable or PSI - 100% dynamic from Firebase!
   /// ZERO hardcoded fallback tests when database has no tests!
   static List<MockTest> getCuratedTests(String examId) {
+    final key = (examId == 'psi' || examId == 'gujarat_psi') ? 'gujarat_psi' : 'gujarat_lrd';
+    if (_dynamicTestsByExam.containsKey(key)) {
+      return _dynamicTestsByExam[key]!;
+    }
     if (_dynamicTestsByExam.containsKey(examId)) {
       return _dynamicTestsByExam[examId]!;
     }

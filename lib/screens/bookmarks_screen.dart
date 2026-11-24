@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../data/mock_questions_data.dart';
+import '../data/curated_question_bank.dart';
 import '../models/quiz_model.dart';
 
 class BookmarksScreen extends StatefulWidget {
@@ -14,8 +14,8 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
   Widget build(BuildContext context) {
     // Gather all bookmarked questions across all mock tests
     final List<Question> bookmarkedQuestions = [];
-    for (final test in MockQuestionsData.getAvailableMockTests()) {
-      for (final q in test.questions) {
+    for (final qList in CuratedQuestionBank.cachedQuestions.values) {
+      for (final q in qList) {
         if (q.isBookmarked) {
           bookmarkedQuestions.add(q);
         }

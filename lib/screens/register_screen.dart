@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/firebase_service.dart';
+import '../widgets/psi_mock_test_logo.dart';
 import 'main_navigation_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -105,16 +106,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Center(
-                    child: Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0D253F),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(Icons.person_add, color: Color(0xFFFFC107), size: 32),
-                    ),
+                  const Center(
+                    child: PsiMockTestLogo(size: 76),
                   ),
                   const SizedBox(height: 16),
                   const Center(
@@ -129,7 +122,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const Center(
                     child: Text(
-                      'ગુજરાત પોલીસ પરીક્ષા તૈયારી પોર્ટલ 👮‍♂️',
+                      'PSI Mock Test - Constable & PSI Exam Prep',
                       style: TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   ),

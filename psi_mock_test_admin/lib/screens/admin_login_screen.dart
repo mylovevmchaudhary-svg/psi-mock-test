@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../admin_data_manager.dart';
+import '../psi_mock_test_logo.dart';
 import 'admin_dashboard.dart';
 
 class AdminLoginScreen extends StatefulWidget {
@@ -72,30 +73,22 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Gold Police Shield Badge
-                Container(
-                  width: 68,
-                  height: 68,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0D253F),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFFFC107), width: 2),
-                  ),
-                  child: const Icon(Icons.shield, color: Color(0xFFFFC107), size: 38),
-                ),
+                // 3D PSI Mock Test Admin Emblem
+                const PsiMockTestLogo(size: 82),
                 const SizedBox(height: 16),
 
                 const Text(
-                  'PSI Mock Test - માસ્ટર એડમિન',
+                  'PSI Mock Test - એડમિન પેનલ',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 21,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF0D253F),
+                    letterSpacing: 0.5,
                   ),
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  'Firebase Authentication વડે સુરક્ષિત એડમિન લૉગિન',
+                  'Firebase Authentication વડે અધિકૃત સંચાલક લૉગિન',
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 const SizedBox(height: 20),

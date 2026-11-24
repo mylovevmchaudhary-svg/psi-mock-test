@@ -233,12 +233,12 @@ class _AdMobRewardedTestAdDialogState extends State<AdMobRewardedTestAdDialog> {
                             const Icon(Icons.shield, color: Color(0xFFFFC107), size: 48),
                             const SizedBox(height: 8),
                             const Text(
-                              'ગુજરાત પોલીસ ભરતી તૈયારી 2026',
+                              'PSI Mock Test 2026',
                               style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
                             ),
                             const SizedBox(height: 4),
                             const Text(
-                              'કોન્સ્ટેબલ & PSI મોક ટેસ્ટ પોર્ટલ',
+                              'Constable & PSI Mock Test Series',
                               style: TextStyle(color: Color(0xFFFFC107), fontSize: 12),
                             ),
                             const SizedBox(height: 12),

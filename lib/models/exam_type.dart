@@ -7,9 +7,9 @@ extension ExamTypeExtension on ExamType {
   String get title {
     switch (this) {
       case ExamType.constable:
-        return 'Gujarat Police Constable (LRD)';
+        return 'Constable (LRD)';
       case ExamType.psi:
-        return 'Gujarat Police PSI (Sub-Inspector)';
+        return 'PSI / ASI (Sub-Inspector)';
     }
   }
 

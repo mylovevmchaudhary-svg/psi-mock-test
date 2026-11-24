@@ -29,7 +29,7 @@ jobs:
           flutter create --platforms=android --org com.psimock.test --project-name psi_mock_test .
           # Copy google-services.json into android/app
           cp google-services.json android/app/google-services.json || true
-          # Copy custom Gujarat Police PSI Emblem launcher icons
+          # Copy custom PSI Mock Test 3D Emblem launcher icons
           cp -rf android_branding/mipmap-* android/app/src/main/res/
           # Configure Student App Launcher Name to "PSI Mock Test"
           sed -i 's/android:label="[^"]*"/android:label="PSI Mock Test"/g' android/app/src/main/AndroidManifest.xml
@@ -59,9 +59,9 @@ jobs:
 
       - name: 🎛️ Build Standalone Admin Release APK (~16MB)
         run: |
-          cd police_admin_app
-          flutter create --platforms=android --org com.psimock.admin --project-name psi_admin_app .
-          sed -i 's/android:label="[^"]*"/android:label="PSI Admin Console"/g' android/app/src/main/AndroidManifest.xml
+          cd psi_mock_test_admin
+          flutter create --platforms=android --org com.psimock.admin --project-name psi_mock_test_admin .
+          sed -i 's/android:label="[^"]*"/android:label="PSI Mock Test Admin"/g' android/app/src/main/AndroidManifest.xml
           cp -rf ../android_branding/mipmap-* android/app/src/main/res/
           flutter pub get
           mkdir -p ../build/symbols
@@ -77,7 +77,7 @@ jobs:
           tag_name: v1.0.0-latest
           name: "PSI Mock Test & Admin Console v1.0.0 (Firebase Edition - Connected to psimocktest)"
           body: |
-            ## 👮‍♂️ PSI Mock Test (Gujarat Police Constable & PSI Edition) - v1.0.0 (Firebase)
+            ## 👮‍♂️ PSI Mock Test Platform (Constable & PSI Edition) - v1.0.0 (Firebase)
             
             ### 📥 Download Android Applications:
             - 📱 **Student Mobile App (~16MB):** [PSI_Mock_Test_Student_App.apk](https://github.com/${{ github.repository }}/releases/download/v1.0.0-latest/PSI_Mock_Test_Student_App.apk)
@@ -87,8 +87,10 @@ jobs:
             ### 🚀 Highlights of v1.0.0 Firebase Edition:
             - 🔥 **Firebase Project Connected:** `psimocktest` (Package: `Com.psimock.test`)
             - 🎯 **100% Dynamic Mock Tests:** ZERO pre-loaded tests or questions. All tests and questions load directly from Firebase Firestore.
-            - 📚 **Syllabus & Topics:** 18 Syllabus Sections & 151 Topics for Constable (LRD) and PSI / ASI.
-            - 👤 **Firebase Authentication & Cloud Profiles:** Real-time sign-up, sign-in, and coin synchronization via Cloud Firestore.
+            - 📄 **Single PDF-Style Question Paper:** 1 complete 200-question paper, timer, and 1-200 palette (No Part A / Part B split).
+            - 📚 **Official Syllabus Master:** Exact official syllabus for Gujarat Police PSI (Paper 1) and LRD / Constable with idempotent Firestore seeding.
+            - 📊 **17-Column CSV/Excel Import:** Central MCQ Bank with SHA-256 deduplication and full pre-import validation.
+            - 👤 **Robust Firebase Authentication:** Clean error messages in Gujarati and decoupled profile management.
             - 💰 **Wallet, Referrals & Rewards:** Welcome bonus, referral bonus, daily check-in, and withdrawal requests.
             - 🎨 **Original Design & Features:** 100% preserved UI, colors, layout, and Gujarati language strings.
           files: |

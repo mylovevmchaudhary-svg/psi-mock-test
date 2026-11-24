@@ -3,16 +3,16 @@ import 'screens/admin_login_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const PoliceAdminApp());
+  runApp(const PsiMockTestAdminApp());
 }
 
-class PoliceAdminApp extends StatelessWidget {
-  const PoliceAdminApp({super.key});
+class PsiMockTestAdminApp extends StatelessWidget {
+  const PsiMockTestAdminApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'PSI Admin Console',
+      title: 'PSI Mock Test Admin',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

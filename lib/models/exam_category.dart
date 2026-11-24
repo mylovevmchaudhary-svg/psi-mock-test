@@ -23,17 +23,17 @@ class ExamCategory {
     required this.badgeText,
   });
 
-  /// Strictly only the 2 requested Gujarat Police Exams
+  /// Strictly only the 2 requested Exams (Constable & PSI)
   static List<ExamCategory> getCategories() {
     return const [
       ExamCategory(
         id: 'constable',
-        titleGujarati: 'ગુજરાત પોલીસ કોન્સ્ટેબલ (LRD)',
-        titleEnglish: 'Gujarat Police Constable (Lokrakshak Dal)',
+        titleGujarati: 'કોન્સ્ટેબલ (LRD)',
+        titleEnglish: 'Constable (Lokrakshak Dal)',
         totalTestsCount: 'મોક ટેસ્ટ સીરીઝ',
         description: 'કાયદો, બંધારણ, ગુજરાતનો ઇતિહાસ, ભૂગોળ, રીઝનિંગ, વિજ્ઞાન અને વર્તમાન પ્રવાહો',
-        icon: Icons.local_police,
-        primaryColor: Color(0xFF0D253F), // Gujarat Police Navy Blue
+        icon: Icons.shield,
+        primaryColor: Color(0xFF0D253F), // Navy Blue
         secondaryColor: Color(0xFF1E3C72),
         badgeText: 'લોકરક્ષક દળ 👮‍♂️',
       ),

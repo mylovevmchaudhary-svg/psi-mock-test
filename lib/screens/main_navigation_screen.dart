@@ -65,7 +65,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             onTap: _onTabTapped,
             type: BottomNavigationBarType.fixed,
             backgroundColor: Colors.white,
-            selectedItemColor: const Color(0xFF0D253F), // Gujarat Police Navy Blue
+            selectedItemColor: const Color(0xFF0D253F), // PSI Mock Test Navy Blue
             unselectedItemColor: Colors.grey[500],
             selectedFontSize: 11,
             unselectedFontSize: 10,

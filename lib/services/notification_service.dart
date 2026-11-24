@@ -44,7 +44,7 @@ class NotificationService {
       _notifications.add(
         AppNotification(
           id: item['id']?.toString() ?? 'n_${DateTime.now().millisecondsSinceEpoch}',
-          title: item['title']?.toString() ?? 'ગુજરાત પોલીસ ભરતી સૂચના',
+          title: item['title']?.toString() ?? 'PSI Mock Test સૂચના',
           message: item['message']?.toString() ?? '',
           type: item['type']?.toString() ?? 'alert',
           date: item['created_at'] != null

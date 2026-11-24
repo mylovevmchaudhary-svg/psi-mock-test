@@ -298,12 +298,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 12),
           const Text(
-            'ગુજરાત પોલીસ ભરતી 2026',
+            'PSI Mock Test 2026',
             style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold, color: Colors.white),
           ),
           const SizedBox(height: 4),
           const Text(
-            'કોન્સ્ટેબલ (LRD) અને PSI ના વાસ્તવિક 200 પ્રશ્નોના પેપર સોલ્વ કરો.',
+            'કોન્સ્ટેબલ (LRD) અને PSI ના વાસ્તવિક ઓનલાઇન પેપર સોલ્વ કરો.',
             style: TextStyle(fontSize: 12, color: Colors.white70),
           ),
           const SizedBox(height: 14),
@@ -905,12 +905,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'સત્યમેવ જયતે • સેવા, સુરક્ષા અને શાંતિ',
+            'સત્યમેવ જયતે • PSI & Constable Exam Portal',
             style: TextStyle(fontSize: 11, color: Colors.grey[600]),
           ),
           const SizedBox(height: 2),
           Text(
-            '© 2026 Gujarat Police Aspirants Educational Platform',
+            '© 2026 PSI Mock Test Platform',
             style: TextStyle(fontSize: 10, color: Colors.grey[500]),
           ),
         ],

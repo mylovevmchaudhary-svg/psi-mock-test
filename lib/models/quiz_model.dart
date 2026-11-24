@@ -117,4 +117,68 @@ class QuizAttemptResult {
     if (attempted == 0) return 0.0;
     return double.parse(((correctCount / attempted) * 100).toStringAsFixed(1));
   }
+
+  /// Subject-wise breakdown for post-test analysis
+  Map<String, Map<String, dynamic>> get subjectBreakdown {
+    final Map<String, Map<String, dynamic>> breakdown = {};
+    for (int i = 0; i < test.questions.length; i++) {
+      final q = test.questions[i];
+      final subj = q.subject;
+      breakdown.putIfAbsent(subj, () => {
+        'total': 0,
+        'correct': 0,
+        'incorrect': 0,
+        'unattempted': 0,
+        'marks': 0.0,
+      });
+
+      breakdown[subj]!['total'] = (breakdown[subj]!['total'] as int) + 1;
+      final ans = selectedAnswers[i];
+      if (ans == q.correctOptionIndex) {
+        breakdown[subj]!['correct'] = (breakdown[subj]!['correct'] as int) + 1;
+      } else if (ans != null && ans >= 0 && ans < 4) {
+        breakdown[subj]!['incorrect'] = (breakdown[subj]!['incorrect'] as int) + 1;
+      } else {
+        breakdown[subj]!['unattempted'] = (breakdown[subj]!['unattempted'] as int) + 1;
+      }
+    }
+
+    for (final s in breakdown.keys) {
+      final c = breakdown[s]!['correct'] as int;
+      final inc = breakdown[s]!['incorrect'] as int;
+      final m = (c * test.positiveMarksPerQuestion) - (inc * test.negativeMarksPerQuestion);
+      breakdown[s]!['marks'] = m < 0 ? 0.0 : double.parse(m.toStringAsFixed(2));
+      final attempted = c + inc;
+      breakdown[s]!['accuracy'] = attempted > 0 ? double.parse(((c / attempted) * 100).toStringAsFixed(1)) : 0.0;
+    }
+
+    return breakdown;
+  }
+
+  /// Topic-wise performance analysis for weakness detection
+  Map<String, Map<String, dynamic>> get topicBreakdown {
+    final Map<String, Map<String, dynamic>> breakdown = {};
+    for (int i = 0; i < test.questions.length; i++) {
+      final q = test.questions[i];
+      final top = (q.topic != null && q.topic!.isNotEmpty) ? q.topic! : q.subject;
+      breakdown.putIfAbsent(top, () => {
+        'subject': q.subject,
+        'total': 0,
+        'correct': 0,
+        'incorrect': 0,
+        'unattempted': 0,
+      });
+
+      breakdown[top]!['total'] = (breakdown[top]!['total'] as int) + 1;
+      final ans = selectedAnswers[i];
+      if (ans == q.correctOptionIndex) {
+        breakdown[top]!['correct'] = (breakdown[top]!['correct'] as int) + 1;
+      } else if (ans != null && ans >= 0 && ans < 4) {
+        breakdown[top]!['incorrect'] = (breakdown[top]!['incorrect'] as int) + 1;
+      } else {
+        breakdown[top]!['unattempted'] = (breakdown[top]!['unattempted'] as int) + 1;
+      }
+    }
+    return breakdown;
+  }
 }

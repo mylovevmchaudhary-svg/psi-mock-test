@@ -92,7 +92,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Text(
-                      'ગુજરાત પોલીસ કોન્સ્ટેબલ & PSI 2026 👮‍♂️',
+                      'PSI Mock Test - Constable & PSI Series',
                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0D253F)),
                     ),
                   ),
@@ -183,13 +183,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     icon: Icons.info_outline,
                     color: Colors.grey[700]!,
                     title: 'એપ વિશે અને વર્ઝન',
-                    subtitle: 'Gujarat Police Prep & Admin Suite v2.8 (2026)',
+                    subtitle: 'PSI Mock Test Series v1.0.0 (2026)',
                     onTap: () {
                       showAboutDialog(
                         context: context,
-                        applicationName: 'ગુજરાત પોલીસ તૈયારી',
-                        applicationVersion: '2.8.0 (Constable & PSI Special Edition)',
-                        applicationLegalese: '© 2026 ગુજરાત પોલીસ ભરતી સહાય મંચ',
+                        applicationName: 'PSI Mock Test',
+                        applicationVersion: '1.0.0 (Firebase Edition)',
+                        applicationLegalese: '© 2026 PSI Mock Test Platform',
                       );
                     },
                   ),

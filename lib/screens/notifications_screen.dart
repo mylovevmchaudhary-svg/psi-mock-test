@@ -229,7 +229,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         onPressed: () {
           NotificationService.showSystemAlert(
             context,
-            title: '🚨 ગુજરાત પોલીસ મિશન ખાખી 2026',
+            title: '🚨 PSI Mock Test 2026',
             message: 'નવી મોક ટેસ્ટ સીરીઝ લાઈવ થઈ ગઈ છે! હમણાં જ ટેસ્ટ આપી તમારી તૈયારી ચકાસો.',
           );
         },
