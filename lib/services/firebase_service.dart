@@ -507,8 +507,12 @@ class FirebaseService {
       final List<MockTest> list = [];
       for (final item in docs) {
         final tExamId = item['exam_id']?.toString() ?? 'constable';
-        if (examId != null && examId.isNotEmpty && tExamId != examId) {
-          continue;
+        if (examId != null && examId.isNotEmpty) {
+          final normA = (tExamId == 'psi' || tExamId == 'gujarat_psi') ? 'psi' : 'constable';
+          final normB = (examId == 'psi' || examId == 'gujarat_psi') ? 'psi' : 'constable';
+          if (normA != normB) {
+            continue;
+          }
         }
 
         final tId = item['id']?.toString() ?? '';

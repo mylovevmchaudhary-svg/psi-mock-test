@@ -274,7 +274,7 @@ class AdminDataManager {
 
       tests.add({
         'id': testId,
-        'exam': examId == 'psi' ? 'PSI / ASI' : 'કોન્સ્ટેબલ (LRD)',
+        'exam': (examId == 'psi' || examId == 'gujarat_psi') ? 'PSI / ASI' : 'કોન્સ્ટેબલ (LRD)',
         'exam_id': examId,
         'title': item['title']?.toString() ?? 'મોક ટેસ્ટ',
         'description': item['description']?.toString() ?? '',
