@@ -48,12 +48,14 @@ jobs:
           
           # Set applicationId to Com.psimock.test matching google-services.json
           python3 -c '
-          import re
-          with open("android/app/build.gradle", "r") as f:
-              txt = f.read()
-          txt = re.sub(r"applicationId\s*=?\s*\"[^\"]*\"", "applicationId = \"Com.psimock.test\"", txt)
-          with open("android/app/build.gradle", "w") as f:
-              f.write(txt)
+          import os, re
+          target_file = "android/app/build.gradle.kts" if os.path.exists("android/app/build.gradle.kts") else "android/app/build.gradle"
+          if os.path.exists(target_file):
+              with open(target_file, "r") as f:
+                  txt = f.read()
+              txt = re.sub(r"applicationId\s*=?\s*\"[^\"]*\"", "applicationId = \"Com.psimock.test\"", txt)
+              with open(target_file, "w") as f:
+                  f.write(txt)
           '
 
       - name: ☕ Set up Java (JDK 17)
