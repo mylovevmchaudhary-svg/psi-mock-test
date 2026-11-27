@@ -147,11 +147,11 @@ class AdminDataManager {
       final client = HttpClient();
       client.connectionTimeout = const Duration(seconds: 10);
       final req = await client.patchUrl(uri);
-      req.headers.set('Content-Type', 'application/json');
+      req.headers.set('Content-Type', 'application/json; charset=utf-8');
 
       final Map<String, dynamic> fields = {};
       data.forEach((k, v) => fields[k] = _encodeValue(v));
-      req.write(jsonEncode({'fields': fields}));
+      req.add(utf8.encode(jsonEncode({'fields': fields})));
 
       final res = await req.close();
       return res.statusCode >= 200 && res.statusCode < 300;
@@ -185,12 +185,12 @@ class AdminDataManager {
       final client = HttpClient();
       client.connectionTimeout = const Duration(seconds: 10);
       final req = await client.postUrl(uri);
-      req.headers.set('Content-Type', 'application/json');
-      req.write(jsonEncode({
+      req.headers.set('Content-Type', 'application/json; charset=utf-8');
+      req.add(utf8.encode(jsonEncode({
         'email': email.trim(),
         'password': password.trim(),
         'returnSecureToken': true,
-      }));
+      })));
       final res = await req.close();
       final body = await res.transform(utf8.decoder).join();
       final Map<String, dynamic> json = jsonDecode(body);

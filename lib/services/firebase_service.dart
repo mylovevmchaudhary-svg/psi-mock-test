@@ -173,7 +173,7 @@ class FirebaseService {
       final client = HttpClient();
       client.connectionTimeout = const Duration(seconds: 8);
       final request = await client.postUrl(uri);
-      request.headers.set('Content-Type', 'application/json');
+      request.headers.set('Content-Type', 'application/json; charset=utf-8');
 
       final queryPayload = {
         'structuredQuery': {
@@ -188,7 +188,7 @@ class FirebaseService {
         }
       };
 
-      request.write(jsonEncode(queryPayload));
+      request.add(utf8.encode(jsonEncode(queryPayload)));
       final response = await request.close();
       final body = await response.transform(utf8.decoder).join();
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -215,10 +215,10 @@ class FirebaseService {
       final client = HttpClient();
       client.connectionTimeout = const Duration(seconds: 8);
       final request = await client.patchUrl(uri);
-      request.headers.set('Content-Type', 'application/json');
+      request.headers.set('Content-Type', 'application/json; charset=utf-8');
 
       final payload = _encodeDoc(data);
-      request.write(jsonEncode(payload));
+      request.add(utf8.encode(jsonEncode(payload)));
       final response = await request.close();
       return response.statusCode >= 200 && response.statusCode < 300;
     } catch (e) {
@@ -248,7 +248,7 @@ class FirebaseService {
       final client = HttpClient();
       client.connectionTimeout = const Duration(seconds: 10);
       final request = await client.postUrl(uri);
-      request.headers.set('Content-Type', 'application/json');
+      request.headers.set('Content-Type', 'application/json; charset=utf-8');
 
       final authBody = {
         'email': email.trim(),
@@ -256,7 +256,7 @@ class FirebaseService {
         'returnSecureToken': true,
       };
 
-      request.write(jsonEncode(authBody));
+      request.add(utf8.encode(jsonEncode(authBody)));
       final response = await request.close();
       final body = await response.transform(utf8.decoder).join();
       final Map<String, dynamic> jsonResponse = jsonDecode(body);
@@ -323,7 +323,7 @@ class FirebaseService {
       final client = HttpClient();
       client.connectionTimeout = const Duration(seconds: 10);
       final request = await client.postUrl(uri);
-      request.headers.set('Content-Type', 'application/json');
+      request.headers.set('Content-Type', 'application/json; charset=utf-8');
 
       final authBody = {
         'email': email.trim(),
@@ -331,7 +331,7 @@ class FirebaseService {
         'returnSecureToken': true,
       };
 
-      request.write(jsonEncode(authBody));
+      request.add(utf8.encode(jsonEncode(authBody)));
       final response = await request.close();
       final body = await response.transform(utf8.decoder).join();
       final Map<String, dynamic> jsonResponse = jsonDecode(body);
@@ -650,14 +650,39 @@ class FirebaseService {
       }).toList();
     }
 
-    // Group topics by syllabus_id
-    final Map<String, List<SyllabusTopic>> topicsBySection = {};
+    // Build clean OfficialSyllabusMaster lookup maps as UTF-8 safeguard & ordering reference
+    final masterSubjects = OfficialSyllabusMaster.getSubjectsForExam(normalizedExamId);
+    final Map<String, TopicMaster> masterTopicById = {};
+    final Map<String, SubjectMaster> masterSubjectById = {};
+    for (final ms in masterSubjects) {
+      masterSubjectById[ms.subjectId] = ms;
+      for (final mt in ms.topics) {
+        masterTopicById[mt.topicId] = mt;
+      }
+    }
+    bool isCorruptedText(String s) => s.trim().isEmpty || RegExp(r'\?{3,}').hasMatch(s);
+
+    // Group topics by syllabus_id and preserve topic_order
+    final Map<String, List<MapEntry<int, SyllabusTopic>>> topicsBySection = {};
     for (final t in topicDocs) {
       final sylId = (t['syllabus_id'] ?? t['subject_id'])?.toString() ?? '';
       final topicId = t['id']?.toString() ?? '';
-      final gujTitle = t['title_gujarati']?.toString() ?? t['title']?.toString() ?? '';
-      final engTitle = t['title']?.toString() ?? gujTitle;
+      final masterTopic = masterTopicById[topicId];
+
+      String gujTitle = t['title_gujarati']?.toString() ?? t['title']?.toString() ?? '';
+      String engTitle = t['title']?.toString() ?? gujTitle;
+      if (isCorruptedText(gujTitle) && masterTopic != null) {
+        gujTitle = masterTopic.topicName;
+      }
+      if (isCorruptedText(engTitle) && masterTopic != null) {
+        engTitle = masterTopic.topicName;
+      }
+
       final count = counts[topicId] ?? 0;
+      final order = (t['topic_order'] as num?)?.toInt() ??
+          (t['order'] as num?)?.toInt() ??
+          masterTopic?.topicOrder ??
+          999;
 
       final topic = SyllabusTopic(
         id: topicId,
@@ -670,10 +695,10 @@ class FirebaseService {
         mcqCount: count,
       );
 
-      topicsBySection.putIfAbsent(sylId, () => []).add(topic);
+      topicsBySection.putIfAbsent(sylId, () => []).add(MapEntry(order, topic));
     }
 
-    final List<SyllabusSubject> subjects = [];
+    final List<MapEntry<int, SyllabusSubject>> orderedSubjects = [];
     for (final item in syllabusDocs) {
       final exId = item['exam_id']?.toString() ?? 'gujarat_lrd';
       // Match either normalized ID or legacy ID
@@ -686,26 +711,47 @@ class FirebaseService {
       }
 
       final subjectId = item['id']?.toString() ?? '';
-      final sectionTopics = topicsBySection[subjectId] ?? [];
+      final masterSubj = masterSubjectById[subjectId];
+      final sectionEntries = topicsBySection[subjectId] ?? [];
+      sectionEntries.sort((a, b) => a.key.compareTo(b.key));
+      final sectionTopics = sectionEntries.map((e) => e.value).toList();
 
       int totalSubjMcqs = 0;
       for (final st in sectionTopics) {
         totalSubjMcqs += st.mcqCount;
       }
 
-      subjects.add(SyllabusSubject(
-        id: subjectId,
-        title: item['title']?.toString() ?? '',
-        titleGujarati: item['title_gujarati']?.toString() ?? item['title']?.toString() ?? '',
-        iconName: item['icon_name']?.toString() ?? 'menu_book',
-        totalMarksWeightage: (item['total_marks_weightage'] as num?)?.toInt() ?? 10,
-        examId: exId,
-        dynamicMcqCount: totalSubjMcqs,
-        topics: sectionTopics,
+      String subTitle = item['title']?.toString() ?? '';
+      String subTitleGuj = item['title_gujarati']?.toString() ?? subTitle;
+      if (isCorruptedText(subTitle) && masterSubj != null) {
+        subTitle = masterSubj.subjectName;
+      }
+      if (isCorruptedText(subTitleGuj) && masterSubj != null) {
+        subTitleGuj = masterSubj.subjectName;
+      }
+
+      final subOrder = (item['subject_order'] as num?)?.toInt() ??
+          (item['order'] as num?)?.toInt() ??
+          masterSubj?.subjectOrder ??
+          999;
+
+      orderedSubjects.add(MapEntry(
+        subOrder,
+        SyllabusSubject(
+          id: subjectId,
+          title: subTitle,
+          titleGujarati: subTitleGuj,
+          iconName: item['icon_name']?.toString() ?? 'menu_book',
+          totalMarksWeightage: (item['total_marks_weightage'] as num?)?.toInt() ?? 10,
+          examId: exId,
+          dynamicMcqCount: totalSubjMcqs,
+          topics: sectionTopics,
+        ),
       ));
     }
 
-    return subjects;
+    orderedSubjects.sort((a, b) => a.key.compareTo(b.key));
+    return orderedSubjects.map((e) => e.value).toList();
   }
 
   /// Fetch MCQs for a specific syllabus topic from Firestore `questions`
