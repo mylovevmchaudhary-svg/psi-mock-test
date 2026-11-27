@@ -109,8 +109,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/heads/main')
         with:
-          tag_name: v1.0.0-latest
-          name: "PSI Mock Test & Admin Console v1.0.0 (Firebase Universal Edition)"
+          tag_name: v1.0.${{ github.run_number }}
+          name: "PSI Mock Test & Admin Console v1.0.${{ github.run_number }} (Firebase Universal Edition)"
+          make_latest: true
           body: |
             ## 👮‍♂️ PSI Mock Test Platform (Constable & PSI Edition) - v1.0.0 (Firebase Universal)
             
